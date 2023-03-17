@@ -80,6 +80,7 @@
               done - add water flow sw/cl sw status to off menu
 
               inwork -
+                  add mcp23017 for led and maybe alrm control
                   add alarm flags and alarm timer beep
                   add air flow read/setting to pump menu
 
@@ -194,6 +195,8 @@
 #include "RTClib.h"
 
 #include "OLED.h"
+#include "HMI.h"
+
 #include "SD_Card.h"
 #include "Simple_Menu.h"
 #include "Button2.h"
@@ -461,6 +464,10 @@ struct AirSensor AirPump;
 int StatusAirSensor = 0;
 bool StatusCLSensor = OFF;
 bool StatusWaterFlowSensor = OFF;
+
+/************************   mcp expander  ****************************/
+Adafruit_MCP23X17 mcp;
+
 /****************************  menu code  ***************************/
 menuFrame AlarmMenu; // runs when SSW in Alarm Position
 menuFrame PumpMenu;  // runs when SSW in Pump Position
@@ -527,11 +534,83 @@ void setup()
   digitalWrite(PumpPin, OFF);
   // digitalWrite(CLPumpPin, OFF);
 
+  /****   expander pins   *****/
+  // configure pin for output
+  mcp.pinMode(LED_Alarm_RED_PIN, OUTPUT);
+  mcp.pinMode(LED_BT_BLU_PIN, OUTPUT);
+  mcp.pinMode(LED_Auto_GRN_PIN, OUTPUT);
+  mcp.pinMode(LED_Auto_RED_PIN, OUTPUT);
+  mcp.pinMode(LED_Pump_GRN_PIN, OUTPUT);
+  mcp.pinMode(LED_Pump_RED_PIN, OUTPUT);
+  mcp.pinMode(LED_AirFlow_GRN_PIN, OUTPUT);
+  mcp.pinMode(LED_AirFlow_RED_PIN, OUTPUT);
+  mcp.pinMode(LED_CL_GRN_PIN, OUTPUT);
+  mcp.pinMode(LED_CL_RED_PIN, OUTPUT);
+
   /********************   init i2c  *****************/
   Wire.begin(I2c_SDA, I2c_SCL);
   // bool status; // connect status
   DEBUGPRINTLN("I2C INIT OK");
 
+  /**************  io expander  ***********************/
+  if (!mcp.begin_I2C())
+  {
+    Serial.println("Error.");
+    while (1)
+      ;
+  }
+  else
+  {
+
+    while (1)
+    {
+      Serial.println("LED_Auto_GRN_PIN, ON.");
+      mcp.digitalWrite(LED_Auto_GRN_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_Auto_RED_PIN, On.");
+      mcp.digitalWrite(LED_Auto_RED_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_PUMP_GRN_PIN, ON.");
+      mcp.digitalWrite(LED_Pump_GRN_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_Pump_RED_PIN, ON.");
+      mcp.digitalWrite(LED_Pump_RED_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_AirFlow_GRN_PIN, ON.");
+      mcp.digitalWrite(LED_AirFlow_GRN_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_AirFlow_RED_PIN, ON.");
+      mcp.digitalWrite(LED_AirFlow_RED_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_CL_GRN_PIN, ON.");
+      mcp.digitalWrite(LED_CL_GRN_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_CL_RED_PIN, ON.");
+      mcp.digitalWrite(LED_CL_RED_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_Alarm_RED_PIN, ON.");
+      mcp.digitalWrite(LED_Alarm_RED_PIN, ON);
+      delay(1000);
+
+      Serial.println("LED_BT_BLU_PIN, ON.");
+      mcp.digitalWrite(LED_BT_BLU_PIN, ON);
+      delay(1000);
+      Serial.println("All off.");
+
+      mcp.writeGPIOA(OFF);
+      mcp.writeGPIOB(OFF);
+      delay(1000);
+    }
+  }
+  /*****************************************************************************************************/
   /********************* oled  ********************/
   // SSD1306_SWITCHCAPVCC = generate OLED_Display voltage from 3.3V internally
   /*   if (!OLED_Display.begin(SSD1306_SWITCHCAPVCC, 0x3c)) // Address 0x3C for 128x32 board
@@ -841,6 +920,14 @@ void setup()
   ina3221.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
   //  Sets shunt-voltage conversion time.
   ina3221.setShuntConversionTime(INA3221_REG_CONF_CT_1100US);
+
+  // /**************  io expander  ***********************/
+  // if (!mcp.begin_I2C())
+  // {
+  //   Serial.println("Error.");
+  //   while (1)
+  //     ;
+  // }
 
   /****************************   NVM   ************************/
   // test for first run time
@@ -1192,6 +1279,7 @@ void loop()
       {
         TestPwrSupply();
         TestLevelSensor();
+        /************************** led=PumpRed, flashstate=flash,*/
       }
     }
 
@@ -1233,6 +1321,7 @@ void loop()
     {
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
+        /************************** led=PumpRed, flashstate=flash,*/
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
         // delay(1000);
@@ -1243,6 +1332,7 @@ void loop()
     {
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
+        /************************** led=PumpRed, flashstate=flash,*/
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == OFF && StatusWaterFlowSensor == ON");
         // delay(1000);
@@ -1647,12 +1737,22 @@ void AlarmToggle()
 // Alaram Control
 void Alarm(void)
 {
+  /*return this alarm level
+  off=0
+  LevelHi =1
+  AutoInManual =2
+  PumpNoFlow =3
+  AirHiLowFlow=4
+  CLLow=5
+
+  */
   if (AutoManControl == ON)
   {
     if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
     {
       digitalWrite(AlarmPin, ON);
-      StatusAlarm = ON;
+      StatusAlarm = 1;
+      /************************** led=PumpRed, flashstate=flash,*/
       // DEBUGPRINT(" AutoAlarmStatusON ");
       // DEBUGPRINTLN(StatusAlarm);
     }
@@ -1660,13 +1760,18 @@ void Alarm(void)
     if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
     {
       digitalWrite(AlarmPin, OFF);
-      StatusAlarm = OFF;
+      StatusAlarm = 0;
+      /************************** led=PumpGrn, flashstate=on,*/
       // DEBUGPRINT(" AutoAlarmStatusOFF ");
       // DEBUGPRINTLN(StatusAlarm);
     }
   }
   else // manual control
   {
+    /*run timer for 1 hr the set alarm to remind to go to back to auto*/
+    /************************** led=autogrn, flashstate=on,*/
+    /************************** clearedled=autogrn, flashstate=on,*/
+
     /*     if (AlarmManFlag == ON)
         {
           digitalWrite(AlarmPin, ON);
