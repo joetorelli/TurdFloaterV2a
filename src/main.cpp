@@ -252,7 +252,11 @@
 
 const byte ON = 1;
 const byte OFF = 0;
+
+// leds
 const byte Flashing = 3;
+const byte Norm = 0;
+
 const byte LevelHi = 1;
 const byte PumpNoFlow = 2;
 const byte AirNoFlow = 3;
@@ -267,16 +271,17 @@ int PumpOffLevel = 0;  // value for PumpOffLevel
 int AlarmVol = 0;
 
 // control flags
-bool PumpOnOff = OFF;  // turn pump on/off
-bool AlarmOnOff = OFF; // turn alarm on/off
+bool PumpControl = OFF;     // turn pump on/off
+bool AlarmControl = OFF;    // turn alarm on/off
+bool PumpManControl = OFF;  // pump man sw state
+bool AlarmManControl = OFF; // Alarm sw state
+bool AutoManControl = ON;   // auto/manual sw state
 
 // status flags
 byte StatusWaterPump = OFF; // Pump State On/Off
-byte PumpManFlag = OFF;     // pump sw state
 byte StatusAlarm = OFF;     // Alarm State On/Off
-byte AlarmManFlag = OFF;    // Alarm sw state
-byte AutoManControl = ON;   // auto/manual sw state
 byte AlarmType = OFF;
+bool StatusWaterFlowSensor = OFF;
 // byte CLPumpStatus = OFF;  // CLPump On/Off
 // byte CLPumpManFlag = OFF; // CLpump sw state
 // byte CLPumpRunOnce = OFF; // run CLPump after Pump stops
@@ -328,9 +333,11 @@ Ticker SensorTimer;     // how often to Read Sensor
 Ticker DisPlayTimer;    // how often to update OLED
 Ticker DisplayOffTimer; // when to blank display
 Ticker ReadWaterSWTimer;
+Ticker BlinkTimer;
 // Ticker CLPumpTimer;     // how long to run CLPump
 
 //// timer intervals
+float Blink_interval = 6;           // alarm,leds on/off
 float SD_interval = 600;            // sec for updating file on sd card
 unsigned int APP_interval = 500;    // ms for updating BT panel
 unsigned int Sensor_interval = 500; // ms for sensor reading
@@ -359,16 +366,14 @@ Preferences Settings; // NVM
 
 void WriteData(void); // save to eprom
 void LevelControl(void);
-void Alarm(bool OnOff); // alarm control auto/man & on/off
-void Pump(void);        // pump control auto/man & on/off
+void Alarm(bool AlarmOnOff); // alarm control auto/man & on/off
+void Pump(bool PumpOnOff);   // pump control auto/man & on/off
 // void CLPump(void);    // CLpump control on sets timer for off
 // void CLPumpOFF(void); // CLPump off
 
-void BuildPanel(void); // builds app panels on phone
-
+void BuildPanel(void);  // builds app panels on phone
 void DisplayData(void); // send serial data debug
 // DateTime OLEDClock = rtc.now();
-
 void SystemSetUp(void); /////////////////// oled menu
 
 /********  ticker timers callback functions  *********/
@@ -385,6 +390,10 @@ void DisplayOn(void); // update disp on start blank timer
 void SD_Update();           // write to sd file
 void SD_UpdateSetFlag();    // set flag to run SD update
 boolean SDUpdateFlag = OFF; // update flag
+
+void Blink_Update();
+void BlinkSetFlag();
+boolean BlinkUpdateFlag = OFF;
 
 // void SensorRead();            // read sensor value
 void SensorReadSetFlag();     // set flag to run sd update
@@ -475,7 +484,7 @@ Adafruit_MPRLS AirFlowSensor = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 struct AirSensor AirPump;
 int StatusAirSensor = 0;
 bool StatusCLSensor = OFF;
-bool StatusWaterFlowSensor = OFF;
+;
 
 /************************   mcp expander  ****************************/
 Adafruit_MCP23X17 IOExpander;
@@ -1065,12 +1074,13 @@ void setup()
     Serial.println("Found MPRLS sensor");
     delay(1000);
   }
-  /***********************************************************/
-  // Start the timers
+  /*************************  Start the timers ****************/
+
   SDTimer.attach(SD_interval, SD_UpdateSetFlag);               // set flag to write to sd
   APPTimer.attach_ms(APP_interval, SendAppData);               // update app data
   SensorTimer.attach_ms(Sensor_interval, SensorReadSetFlag);   // set flag to read sensor
   DisPlayTimer.attach_ms(DISP_interval, DisplayUpdateSetFlag); // set flag to update oled data
+  BlinkTimer.attach_ms(Blink_interval, BlinkSetFlag);
   // DisplayOffTimer.attach(DISP_TimeOut, DisplayOff);
   //     changer.once(30, change);
 
@@ -1372,9 +1382,9 @@ void loop()
     DisplayOffFlag = OFF;
   }
   /********* run every loop *********/
-  Pump();
+  Pump(PumpControl);
   // CLPump();
-  Alarm(AlarmOnOff);
+  Alarm(AlarmControl);
 }
 
 /**************************************************************************************************
@@ -1729,8 +1739,8 @@ void VolumeAdjust()
 void PumpToggle()
 {
 
-  PumpManFlag = !PumpManFlag;
-  digitalWrite(PumpPin, PumpManFlag);
+  PumpManControl = !PumpManControl;
+  digitalWrite(PumpPin, PumpManControl);
 }
 
 // toggle clpump on/off
@@ -1745,8 +1755,8 @@ void PumpToggle()
 void AlarmToggle()
 {
 
-  AlarmManFlag = !AlarmManFlag;
-  digitalWrite(AlarmPin, AlarmManFlag);
+  AlarmManControl = !AlarmManControl;
+  digitalWrite(AlarmPin, AlarmManControl);
 }
 
 void LevelControl(void)
@@ -1755,7 +1765,7 @@ void LevelControl(void)
   if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
   {
 
-    AlarmOnOff = ON;
+    AlarmControl = ON;
     LEDControl(&IOExpander, LevelHi, LED_Alarm_RED_PIN, Flashing);
 
     // DEBUGPRINT(" AutoAlarmStatusON ");
@@ -1765,8 +1775,8 @@ void LevelControl(void)
   if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
   {
 
-    AlarmOnOff = OFF;
-    LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, OFF);
+    AlarmControl = OFF;
+    LEDControl(&IOExpander, Norm, LED_Alarm_RED_PIN, OFF);
     //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
     // DEBUGPRINT(" AutoAlarmStatusOFF ");
     // DEBUGPRINTLN(StatusAlarm);
@@ -1775,11 +1785,11 @@ void LevelControl(void)
   if (Sensor_Level_Values.DepthMM >= PumpOnLevel)
   {
 
-    StatusWaterPump = ON;
-    // LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, OFF);
+    PumpControl = ON;
+    // LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, Flashing);
     //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
-    //  DEBUGPRINT(" AutoAlarmStatusOFF ");
-    //  DEBUGPRINTLN(StatusAlarm);
+    //   DEBUGPRINT(" AutoAlarmStatusOFF ");
+    //   DEBUGPRINTLN(StatusAlarm);
 
     // Serial.println(" AutoPumpStatusON ");
     //  DEBUGPRINTLN(StatusWaterPump);
@@ -1795,10 +1805,11 @@ void LevelControl(void)
   if (Sensor_Level_Values.DepthMM <= PumpOffLevel)
   {
 
-    StatusWaterPump = OFF;
+    PumpControl = OFF;
+    // LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, Flashing);
     //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
-    // DEBUGPRINT(" AutoAlarmStatusOFF ");
-    // DEBUGPRINTLN(StatusAlarm);
+    //  DEBUGPRINT(" AutoAlarmStatusOFF ");
+    //  DEBUGPRINTLN(StatusAlarm);
 
     // //      delay(500);
     // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
@@ -1808,78 +1819,56 @@ void LevelControl(void)
 }
 
 // Alaram Control
-void Alarm(bool OnOff)
+void Alarm(bool AlarmOnOff)
 {
-  /*return this alarm level
-  off=0
-  LevelHi =1
-  AutoInManual =2
-  PumpNoFlow =3
-  AirHiLowFlow=4
-  CLLow=5
 
-  */
-  /****************   setup timer here for beep on off*/
-  if (OnOff == ON)
+  if (AutoManControl == ON)
   {
-    digitalWrite(AlarmPin, ON);
-    StatusAlarm = 1;
-    /************************** led=LED_Pump_RED_PIN, flashstate=flash,*/
-  }
-  else
-  {
-    digitalWrite(AlarmPin, OFF);
-    StatusAlarm = 0;
-    /************************** led=LED_Pump_GRN_PIN, flashstate=on,*/
-  }
-  /*
-    if (AutoManControl == ON)
+    if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
     {
-      if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
-      {
-        digitalWrite(AlarmPin, ON);
-        StatusAlarm = 1;
-        //************************** led=LED_Pump_RED_PIN, flashstate=flash,*
+      digitalWrite(AlarmPin, ON);
+      StatusAlarm = ON;
+      //************************** led=LED_Pump_RED_PIN, flashstate=flash,*
 
-        // DEBUGPRINT(" AutoAlarmStatusON ");
-        // DEBUGPRINTLN(StatusAlarm);
-      }
-
-      if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
-      {
-        digitalWrite(AlarmPin, OFF);
-        StatusAlarm = 0;
-        //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
-        // DEBUGPRINT(" AutoAlarmStatusOFF ");
-        // DEBUGPRINTLN(StatusAlarm);
-      }
+      // DEBUGPRINT(" AutoAlarmStatusON ");
+      // DEBUGPRINTLN(StatusAlarm);
     }
-    */
-  /*else // manual control
-  {*/
-  /*run timer for 1 hr the set alarm to remind to go to back to auto*/
-  /************************** led=autogrn, flashstate=on,*/
-  /************************** clearedled=autogrn, flashstate=on,*/
 
-  /*     if (AlarmManFlag == ON)
-      {
-        digitalWrite(AlarmPin, ON);
-        StatusAlarm = ON;
-        // DEBUGPRINT(" ManAlarmStatusON ");
-        //   DEBUGPRINTLN(StatusAlarm);
-      }
-      else
-      {
-        digitalWrite(AlarmPin, OFF);
-        StatusAlarm = OFF;
-        // DEBUGPRINT(" ManAlarmStatusOFF ");
-        //   DEBUGPRINTLN(StatusAlarm);
-      } */
-  //}
+    if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
+    {
+      digitalWrite(AlarmPin, OFF);
+      StatusAlarm = OFF;
+      //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
+      // DEBUGPRINT(" AutoAlarmStatusOFF ");
+      // DEBUGPRINTLN(StatusAlarm);
+    }
+  }
+
+  else // manual control
+  {
+    /*run timer for 1 hr the set alarm to remind to go to back to auto*/
+    /************************** led=autogrn, flashstate=on,*/
+    /************************** clearedled=autogrn, flashstate=on,*/
+
+    if (AlarmManControl == ON)
+    {
+      digitalWrite(AlarmPin, ON);
+      StatusAlarm = ON;
+      // DEBUGPRINT(" ManAlarmStatusON ");
+      //   DEBUGPRINTLN(StatusAlarm);
+    }
+    else
+    {
+      digitalWrite(AlarmPin, OFF);
+      StatusAlarm = OFF;
+      // DEBUGPRINT(" ManAlarmStatusOFF ");
+      //   DEBUGPRINTLN(StatusAlarm);
+    }
+  }
 }
 
 // Pump Control
-void Pump(void)
+void Pump(bool PumpOnOff)
 {
 
   if (AutoManControl == ON) // auto
@@ -1912,7 +1901,7 @@ void Pump(void)
   else // manual control
   {    ///////////////////////////////////////////////////// maybe changes this to PumpToggle
 
-    if (PumpManFlag == ON)
+    if (PumpManControl == ON)
     {
       digitalWrite(PumpPin, ON);
       StatusWaterPump = ON;
@@ -2751,8 +2740,8 @@ void pressed(Button2 &btn)
       AutoPositionFlag = ON;
 
       /* theses are set in prgam loop
-             PumpManFlag
-             AlarmManFlag
+             PumpManControl
+             AlarmManControl
              CLPumpManFlag
         */
 
@@ -2783,9 +2772,9 @@ void pressed(Button2 &btn)
       OffPositionFlag = OFF;
       AutoPositionFlag = OFF;
 
-      PumpManFlag = OFF;
+      PumpManControl = OFF;
       // CLPumpManFlag = OFF;
-      AlarmManFlag = OFF; // set in menu
+      AlarmManControl = OFF; // set in menu
 
       AutoManControl = OFF;
 
@@ -2814,9 +2803,9 @@ void pressed(Button2 &btn)
       OffPositionFlag = ON;
       AutoPositionFlag = OFF;
 
-      PumpManFlag = OFF;
+      PumpManControl = OFF;
       // CLPumpManFlag = OFF;
-      AlarmManFlag = OFF;
+      AlarmManControl = OFF;
 
       AutoManControl = OFF;
       digitalWrite(PumpPin, OFF);
@@ -2834,9 +2823,9 @@ void pressed(Button2 &btn)
       OffPositionFlag = OFF;
       AutoPositionFlag = OFF;
 
-      PumpManFlag = OFF; // will be controlled by menu
+      PumpManControl = OFF; // will be controlled by menu
       // CLPumpManFlag = OFF; // will be controlled by menu
-      AlarmManFlag = OFF;
+      AlarmManControl = OFF;
 
       AutoManControl = OFF;
 
@@ -2986,10 +2975,10 @@ void SendAppData()
         // Serial1.print("*V" + String(Sensor_Level_Values.DepthMM) + "," + String(PumpPlotVal) + "," + String(AlarmPlotVal) + "," + String(CLPlotVal));
         //      Serial1.print("*VX" + String(cntr) + "Y" + String(Sensor_Level_Values.DepthMM) + ",X" + String(cntr) + "Y" + String(PumpPlotVal) + ",X" + String(cntr) + "Y" + String(AlarmPlotVal) + ",X" + String(cntr) + "Y" + String(CLPlotVal) + "*");
 
-        StatusWaterPump = OFF;
-        PumpManFlag = OFF;
-        StatusAlarm = OFF;
-        AlarmManFlag = OFF;
+        // StatusWaterPump = OFF;
+        PumpManControl = OFF;
+        // StatusAlarm = OFF;
+        AlarmManControl = OFF;
         // CLPumpStatus = OFF;
         // CLPumpManFlag = OFF;
         Page1Once = 0;
@@ -3028,8 +3017,8 @@ void SendAppData()
       }
 
       // move screen vals to vars
-      /*     PumpManFlag = PumpManFl;
-          AlarmManFlag = AlarmManFl;
+      /*     PumpManControl = PumpManFl;
+          AlarmManControl = AlarmManFl;
           CLPumpManFlag = CLPumpManFl;
           PumpOnLevel = PumpOnLevelSliderValue;
           PumpOffLevel = PumpOffLevelSliderValue;
@@ -3043,8 +3032,8 @@ void SendAppData()
     if (AutoManControl == OFF) // manual
     {
 
-      PumpManFlag = PumpManFl;
-      AlarmManFlag = AlarmManFl;
+      PumpManControl = PumpManFl;
+      AlarmManControl = AlarmManFl;
       // CLPumpManFlag = CLPumpManFl;
       PumpOnLevel = PumpOnLevelSliderValue;
       PumpOffLevel = PumpOffLevelSliderValue;
