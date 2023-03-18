@@ -252,19 +252,31 @@
 
 const byte ON = 1;
 const byte OFF = 0;
+const byte Flashing = 3;
+const byte LevelHi = 1;
+const byte PumpNoFlow = 2;
+const byte AirNoFlow = 3;
+const byte CLLow = 4;
+const byte AutoInManual = 5;
 
+// level values
 int AlarmOnLevel = 0;  // value for AlarmLevel to ON
 int AlarmOffLevel = 0; // value for AlarmLevel to OFF
 int PumpOnLevel = 0;   // value for PumpOnLevel
 int PumpOffLevel = 0;  // value for PumpOffLevel
 int AlarmVol = 0;
 
+// control flags
+bool PumpOnOff = OFF;  // turn pump on/off
+bool AlarmOnOff = OFF; // turn alarm on/off
+
 // status flags
-byte StatusWaterPump = OFF; // Pump On/Off
+byte StatusWaterPump = OFF; // Pump State On/Off
 byte PumpManFlag = OFF;     // pump sw state
-byte StatusAlarm = OFF;     // Alarm On/Off
+byte StatusAlarm = OFF;     // Alarm State On/Off
 byte AlarmManFlag = OFF;    // Alarm sw state
 byte AutoManControl = ON;   // auto/manual sw state
+byte AlarmType = OFF;
 // byte CLPumpStatus = OFF;  // CLPump On/Off
 // byte CLPumpManFlag = OFF; // CLpump sw state
 // byte CLPumpRunOnce = OFF; // run CLPump after Pump stops
@@ -346,9 +358,9 @@ Preferences Settings; // NVM
 **********************************************************************/
 
 void WriteData(void); // save to eprom
-
-void Alarm(void); // alarm control auto/man & on/off
-void Pump(void);  // pump control auto/man & on/off
+void LevelControl(void);
+void Alarm(bool OnOff); // alarm control auto/man & on/off
+void Pump(void);        // pump control auto/man & on/off
 // void CLPump(void);    // CLpump control on sets timer for off
 // void CLPumpOFF(void); // CLPump off
 
@@ -466,7 +478,7 @@ bool StatusCLSensor = OFF;
 bool StatusWaterFlowSensor = OFF;
 
 /************************   mcp expander  ****************************/
-Adafruit_MCP23X17 mcp;
+Adafruit_MCP23X17 IOExpander;
 
 /****************************  menu code  ***************************/
 menuFrame AlarmMenu; // runs when SSW in Alarm Position
@@ -487,6 +499,7 @@ void AlarmOffAdjust();
 // void CLTimeAdjust();
 void VolumeAdjust();
 void PumpToggle();
+/****************   replace this with alarmflag - get rid of delays   ************************/
 void AlarmToggle();
 // void CLPumpToggle();
 void MenuChoose(int Mode);
@@ -534,26 +547,13 @@ void setup()
   digitalWrite(PumpPin, OFF);
   // digitalWrite(CLPumpPin, OFF);
 
-  /****   expander pins   *****/
-  // configure pin for output
-  mcp.pinMode(LED_Alarm_RED_PIN, OUTPUT);
-  mcp.pinMode(LED_BT_BLU_PIN, OUTPUT);
-  mcp.pinMode(LED_Auto_GRN_PIN, OUTPUT);
-  mcp.pinMode(LED_Auto_RED_PIN, OUTPUT);
-  mcp.pinMode(LED_Pump_GRN_PIN, OUTPUT);
-  mcp.pinMode(LED_Pump_RED_PIN, OUTPUT);
-  mcp.pinMode(LED_AirFlow_GRN_PIN, OUTPUT);
-  mcp.pinMode(LED_AirFlow_RED_PIN, OUTPUT);
-  mcp.pinMode(LED_CL_GRN_PIN, OUTPUT);
-  mcp.pinMode(LED_CL_RED_PIN, OUTPUT);
-
   /********************   init i2c  *****************/
   Wire.begin(I2c_SDA, I2c_SCL);
   // bool status; // connect status
   DEBUGPRINTLN("I2C INIT OK");
 
   /**************  io expander  ***********************/
-  if (!mcp.begin_I2C())
+  if (!IOExpander.begin_I2C())
   {
     Serial.println("Error.");
     while (1)
@@ -561,52 +561,64 @@ void setup()
   }
   else
   {
+    /****   expander pins   *****/
+    // configure pin for output
+    IOExpander.pinMode(LED_Alarm_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_BT_BLU_PIN, OUTPUT);
+    IOExpander.pinMode(LED_Auto_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_Auto_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_Pump_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_Pump_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_AirFlow_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_AirFlow_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_CL_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_CL_RED_PIN, OUTPUT);
 
     while (1)
     {
       Serial.println("LED_Auto_GRN_PIN, ON.");
-      mcp.digitalWrite(LED_Auto_GRN_PIN, ON);
+      IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
       delay(1000);
 
       Serial.println("LED_Auto_RED_PIN, On.");
-      mcp.digitalWrite(LED_Auto_RED_PIN, ON);
+      IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
       delay(1000);
 
       Serial.println("LED_PUMP_GRN_PIN, ON.");
-      mcp.digitalWrite(LED_Pump_GRN_PIN, ON);
+      IOExpander.digitalWrite(LED_Pump_GRN_PIN, ON);
       delay(1000);
 
       Serial.println("LED_Pump_RED_PIN, ON.");
-      mcp.digitalWrite(LED_Pump_RED_PIN, ON);
+      IOExpander.digitalWrite(LED_Pump_RED_PIN, ON);
       delay(1000);
 
       Serial.println("LED_AirFlow_GRN_PIN, ON.");
-      mcp.digitalWrite(LED_AirFlow_GRN_PIN, ON);
+      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
       delay(1000);
 
       Serial.println("LED_AirFlow_RED_PIN, ON.");
-      mcp.digitalWrite(LED_AirFlow_RED_PIN, ON);
+      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
       delay(1000);
 
       Serial.println("LED_CL_GRN_PIN, ON.");
-      mcp.digitalWrite(LED_CL_GRN_PIN, ON);
+      IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
       delay(1000);
 
       Serial.println("LED_CL_RED_PIN, ON.");
-      mcp.digitalWrite(LED_CL_RED_PIN, ON);
+      IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
       delay(1000);
 
       Serial.println("LED_Alarm_RED_PIN, ON.");
-      mcp.digitalWrite(LED_Alarm_RED_PIN, ON);
+      IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
       delay(1000);
 
       Serial.println("LED_BT_BLU_PIN, ON.");
-      mcp.digitalWrite(LED_BT_BLU_PIN, ON);
+      IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
       delay(1000);
-      Serial.println("All off.");
 
-      mcp.writeGPIOA(OFF);
-      mcp.writeGPIOB(OFF);
+      Serial.println("All off.");
+      IOExpander.writeGPIOA(OFF);
+      IOExpander.writeGPIOB(OFF);
       delay(1000);
     }
   }
@@ -1279,6 +1291,7 @@ void loop()
       {
         TestPwrSupply();
         TestLevelSensor();
+        AlarmOnOff = ON;
         /************************** led=PumpRed, flashstate=flash,*/
       }
     }
@@ -1322,6 +1335,7 @@ void loop()
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
+        LEDControl(&IOExpander, PumpNoFlow, LED_Pump_RED_PIN, Flashing);
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
         // delay(1000);
@@ -1333,6 +1347,7 @@ void loop()
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
+        LEDControl(&IOExpander, PumpNoFlow, LED_Pump_RED_PIN, Flashing);
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == OFF && StatusWaterFlowSensor == ON");
         // delay(1000);
@@ -1359,7 +1374,7 @@ void loop()
   /********* run every loop *********/
   Pump();
   // CLPump();
-  Alarm();
+  Alarm(AlarmOnOff);
 }
 
 /**************************************************************************************************
@@ -1734,8 +1749,66 @@ void AlarmToggle()
   digitalWrite(AlarmPin, AlarmManFlag);
 }
 
+void LevelControl(void)
+{
+
+  if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
+  {
+
+    AlarmOnOff = ON;
+    LEDControl(&IOExpander, LevelHi, LED_Alarm_RED_PIN, Flashing);
+
+    // DEBUGPRINT(" AutoAlarmStatusON ");
+    // DEBUGPRINTLN(StatusAlarm);
+  }
+
+  if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
+  {
+
+    AlarmOnOff = OFF;
+    LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, OFF);
+    //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
+    // DEBUGPRINT(" AutoAlarmStatusOFF ");
+    // DEBUGPRINTLN(StatusAlarm);
+  }
+
+  if (Sensor_Level_Values.DepthMM >= PumpOnLevel)
+  {
+
+    StatusWaterPump = ON;
+    // LEDControl(&IOExpander, OFF, LED_Pump_RED_PIN, OFF);
+    //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
+    //  DEBUGPRINT(" AutoAlarmStatusOFF ");
+    //  DEBUGPRINTLN(StatusAlarm);
+
+    // Serial.println(" AutoPumpStatusON ");
+    //  DEBUGPRINTLN(StatusWaterPump);
+    // CLPumpRunOnce = ON;
+    // delay(500);
+    // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
+    // if (StatusWaterFlowSensor == OFF)
+    // {
+    //   TestWaterFlowSensor();
+    // }
+  }
+
+  if (Sensor_Level_Values.DepthMM <= PumpOffLevel)
+  {
+
+    StatusWaterPump = OFF;
+    //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
+    // DEBUGPRINT(" AutoAlarmStatusOFF ");
+    // DEBUGPRINTLN(StatusAlarm);
+
+    // //      delay(500);
+    // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
+    // DEBUGPRINT(" AutoPumpStatusOFF ");
+    //  DEBUGPRINTLN(StatusWaterPump);
+  }
+}
+
 // Alaram Control
-void Alarm(void)
+void Alarm(bool OnOff)
 {
   /*return this alarm level
   off=0
@@ -1746,47 +1819,63 @@ void Alarm(void)
   CLLow=5
 
   */
-  if (AutoManControl == ON)
+  /****************   setup timer here for beep on off*/
+  if (OnOff == ON)
   {
-    if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
-    {
-      digitalWrite(AlarmPin, ON);
-      StatusAlarm = 1;
-      /************************** led=PumpRed, flashstate=flash,*/
-      // DEBUGPRINT(" AutoAlarmStatusON ");
-      // DEBUGPRINTLN(StatusAlarm);
-    }
-
-    if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
-    {
-      digitalWrite(AlarmPin, OFF);
-      StatusAlarm = 0;
-      /************************** led=PumpGrn, flashstate=on,*/
-      // DEBUGPRINT(" AutoAlarmStatusOFF ");
-      // DEBUGPRINTLN(StatusAlarm);
-    }
+    digitalWrite(AlarmPin, ON);
+    StatusAlarm = 1;
+    /************************** led=LED_Pump_RED_PIN, flashstate=flash,*/
   }
-  else // manual control
+  else
   {
-    /*run timer for 1 hr the set alarm to remind to go to back to auto*/
-    /************************** led=autogrn, flashstate=on,*/
-    /************************** clearedled=autogrn, flashstate=on,*/
-
-    /*     if (AlarmManFlag == ON)
-        {
-          digitalWrite(AlarmPin, ON);
-          StatusAlarm = ON;
-          // DEBUGPRINT(" ManAlarmStatusON ");
-          //   DEBUGPRINTLN(StatusAlarm);
-        }
-        else
-        {
-          digitalWrite(AlarmPin, OFF);
-          StatusAlarm = OFF;
-          // DEBUGPRINT(" ManAlarmStatusOFF ");
-          //   DEBUGPRINTLN(StatusAlarm);
-        } */
+    digitalWrite(AlarmPin, OFF);
+    StatusAlarm = 0;
+    /************************** led=LED_Pump_GRN_PIN, flashstate=on,*/
   }
+  /*
+    if (AutoManControl == ON)
+    {
+      if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
+      {
+        digitalWrite(AlarmPin, ON);
+        StatusAlarm = 1;
+        //************************** led=LED_Pump_RED_PIN, flashstate=flash,*
+
+        // DEBUGPRINT(" AutoAlarmStatusON ");
+        // DEBUGPRINTLN(StatusAlarm);
+      }
+
+      if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
+      {
+        digitalWrite(AlarmPin, OFF);
+        StatusAlarm = 0;
+        //************************** led=LED_Pump_GRN_PIN, flashstate=on,*
+        // DEBUGPRINT(" AutoAlarmStatusOFF ");
+        // DEBUGPRINTLN(StatusAlarm);
+      }
+    }
+    */
+  /*else // manual control
+  {*/
+  /*run timer for 1 hr the set alarm to remind to go to back to auto*/
+  /************************** led=autogrn, flashstate=on,*/
+  /************************** clearedled=autogrn, flashstate=on,*/
+
+  /*     if (AlarmManFlag == ON)
+      {
+        digitalWrite(AlarmPin, ON);
+        StatusAlarm = ON;
+        // DEBUGPRINT(" ManAlarmStatusON ");
+        //   DEBUGPRINTLN(StatusAlarm);
+      }
+      else
+      {
+        digitalWrite(AlarmPin, OFF);
+        StatusAlarm = OFF;
+        // DEBUGPRINT(" ManAlarmStatusOFF ");
+        //   DEBUGPRINTLN(StatusAlarm);
+      } */
+  //}
 }
 
 // Pump Control
@@ -2095,6 +2184,7 @@ void TestLevelSensor()
     OLED_Display.println("");
     OLED_Display.println("Replace Sensor");
     OLED_Display.display();
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();
@@ -2116,6 +2206,7 @@ void TestLevelSensor()
     OLED_Display.print("Replace Sensor");
 
     OLED_Display.display();
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();
@@ -2202,6 +2293,7 @@ void TestAirSensor()
     OLED_Display.println("");
     OLED_Display.println("Replace Sensor");
     OLED_Display.display();
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();
@@ -2221,6 +2313,7 @@ void TestAirSensor()
     OLED_Display.print("PSI: ");
     OLED_Display.println(AirPump.pressure_PSI, 1);
     OLED_Display.display();
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();
@@ -2240,6 +2333,7 @@ void TestAirSensor()
     OLED_Display.print("PSI: ");
     OLED_Display.println(AirPump.pressure_PSI, 1);
     OLED_Display.display();
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();
@@ -2295,6 +2389,7 @@ void TestWaterFlowSensor()
 
     OLED_Display.display();
 
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     // AlarmToggle();
     // delay(5000);
     // AlarmToggle();
@@ -2351,7 +2446,7 @@ void TestCLSensor()
     OLED_Display.println("");
     OLED_Display.print("Add Tablet");
     OLED_Display.display();
-
+    /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
     delay(5000);
     AlarmToggle();

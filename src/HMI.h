@@ -22,4 +22,4 @@
 #define LED_CL_RED_PIN 7
 
 // #define BUTTON_PIN 1  // MCP23XXX pin button is attached
-void LEDControl(Adafruit_MCP23X17 *Expndr, int led, int type);
+void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int led, int state);
