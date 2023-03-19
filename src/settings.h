@@ -5,6 +5,8 @@
 
 #include "network_config.h"
 // #include "ezTime.h" //ntp and other functions
+const byte ON = 1;
+const byte OFF = 0;
 
 #endif
 
