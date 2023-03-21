@@ -83,7 +83,7 @@
               inwork -
 
                   add mcp23017 for led and maybe alrm control
-                    confilict with mprls
+                    fixed - confilict with mprls
 
                   add alarm flags and alarm timer beep
                   add air flow read/setting to pump menu
@@ -254,20 +254,19 @@
   Global Vars
 **********************************************/
 
-// const byte ON = 1;
-// const byte OFF = 0;
-bool BlinkState = false;
-// leds
-const byte Flashing = 3;
-const byte Norm = 0;
-
+/******  leds  *****/
 // alarm states
+const byte AutoInManual = 0;
 const byte LevelHi = 1;
 const byte PumpNoFlow = 2;
 const byte AirNoFlow = 3;
 const byte CLLow = 4;
-const byte AutoInManual = 5;
+const byte Bluetooth = 5;
+const byte Wireless = 6;
+bool BlinkState;
+/********************/
 
+/****** SYSTEM  ******/
 // level values
 int AlarmOnLevel = 0;  // value for AlarmLevel to ON
 int AlarmOffLevel = 0; // value for AlarmLevel to OFF
@@ -291,13 +290,13 @@ bool StatusWaterFlowSensor = OFF;
 // byte CLPumpManFlag = OFF; // CLpump sw state
 // byte CLPumpRunOnce = OFF; // run CLPump after Pump stops
 
-// timer intervals
+/********** timer intervals ***************/
 float Blink_interval = 500;         // alarm,leds on/off
-float SD_interval = 600;            // sec for updating file on sd card
+float SD_interval = 6000;           // ms for updating file on sd card
 unsigned int APP_interval = 500;    // ms for updating BT panel
 unsigned int Sensor_interval = 500; // ms for sensor reading
 unsigned int DISP_interval = 250;   // ms for oled disp data update
-float DISP_TimeOut = 150;           // sec how long before blank screen
+float DISP_TimeOut = 150000;        // sec how long before blank screen
 // float CLPump_RunTime = 5;           // sec for CL Pump to run
 
 /*************************** BT APP Vars ********************/
@@ -326,11 +325,16 @@ int AlarmOffLevelDisplayValue;
 // int CLTimerDisplayValue;
 int AlarmVolDisplayValue;
 boolean DisplayState = ON;
+/***********************************************/
 
-// misc
-String text;          // String for text elements
-int red, green, blue; // RGB color
-int bubbles;          // Bubble Gauge Value
+/****************** misc vars ********************/
+double Count = 0;            // used for log save count
+boolean SDConnectOK = ON;    // SD card valid
+boolean WiFiConnected = OFF; // WIFI Connected
+byte SetUpFlag = 0;          ///////////////// oled menu inwork
+String text;                 // String for text elements
+int red, green, blue;        // RGB color
+int bubbles;                 // Bubble Gauge Value
 
 int PumpPlotVal = 0;
 int AlarmPlotVal = 0;
@@ -340,16 +344,11 @@ int CLPlotVal = 0;
 int Page1Once = 1;
 int Page2Once = 0;
 
-/**************************** Switches ****************************/
+/***************** Switches **********************/
 struct Select_SW Switch_State; // switch position
 byte SWEncoderFlag = OFF;      // encoder push button
 byte SSWMode = 1;              // position of select switch and encoder
 
-/****************** misc vars ********************/
-double Count = 0;            // used for log save count
-boolean SDConnectOK = ON;    // SD card valid
-boolean WiFiConnected = OFF; // WIFI Connected
-byte SetUpFlag = 0;          ///////////////// oled menu inwork
 // int ChanNum = 0;
 
 /******************* eeprom ******************/
@@ -359,8 +358,8 @@ Preferences Settings; // NVM
 *******************  Sub/Function Declarations
 **********************************************************************/
 
-void WriteData(void); // save to eprom
-void LevelControl(void);
+void WriteData(void);        // save to eprom
+void LevelControl(void);     // test water level
 void Alarm(bool AlarmOnOff); // alarm control auto/man & on/off
 void Pump(bool PumpOnOff);   // pump control auto/man & on/off
 // void CLPump(void);    // CLpump control on sets timer for off
@@ -390,7 +389,7 @@ void Blink_Update();
 void BlinkSetFlag();
 boolean BlinkUpdateFlag = OFF;
 
-// void SensorRead();            // read sensor value
+// void SensorRead();             // read sensor value
 void SensorReadSetFlag();     // set flag to run sd update
 boolean SensorReadFlag = OFF; // update flag
 
@@ -398,7 +397,7 @@ void SendAppData();            // send data to app
 void SendAppDataSetFlag();     // set flag to run app update
 boolean SendAppDataFlag = OFF; // update flag
 
-/************************ timer vars ************************/
+/************************ timer ************************/
 Ticker SDTimer(SD_UpdateSetFlag, SD_interval, 0, MILLIS);            // how often to write to SD Card
 Ticker APPTimer(SendAppData, APP_interval, 0, MILLIS);               // how often to Update BT App
 Ticker SensorTimer(SensorReadSetFlag, Sensor_interval, 0, MILLIS);   // how often to Read Sensor
@@ -500,6 +499,7 @@ menuFrame PumpMenu;  // runs when SSW in Pump Position
 menuFrame TestMenu;  // runs when Program Starts
 
 // menu call functions
+
 void testFunct();
 void TestLevelSensor();
 void TestAirSensor();
@@ -513,6 +513,7 @@ void AlarmOffAdjust();
 // void CLTimeAdjust();
 void VolumeAdjust();
 void PumpToggle();
+
 /****************   replace this with alarmflag - get rid of delays   ************************/
 void AlarmToggle();
 // void CLPumpToggle();
@@ -567,15 +568,16 @@ void setup()
   DEBUGPRINTLN("I2C INIT OK");
 
   /**************  io expander  ***********************/
-  if (!IOExpander.begin_I2C(0x27))
+  if (!IOExpander.begin_I2C()) // change adr here
   {
-    Serial.println("IO Expander Error.");
+    Serial.println("******************IO Expander Error********************");
     // while (1)
     //   ;
     delay(1000);
   }
   else
   {
+    Serial.println(" IO Expander ok ");
     /****   expander pins   *****/
     // configure pin for output
     IOExpander.pinMode(LED_Alarm_RED_PIN, OUTPUT);
@@ -588,54 +590,55 @@ void setup()
     IOExpander.pinMode(LED_AirFlow_RED_PIN, OUTPUT);
     IOExpander.pinMode(LED_CL_GRN_PIN, OUTPUT);
     IOExpander.pinMode(LED_CL_RED_PIN, OUTPUT);
+    IOExpander.writeGPIOA(OFF);
+    IOExpander.writeGPIOB(OFF);
+    /* while (1)
+    {
+      Serial.println("LED_Auto_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
+      delay(1000);
 
-    /*     while (1)
-        {
-          Serial.println("LED_Auto_GRN_PIN, ON.");
-          IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
-          delay(1000);
+      Serial.println("LED_Auto_RED_PIN, On.");
+      IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_Auto_RED_PIN, On.");
-          IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
-          delay(1000);
+      Serial.println("LED_PumpFlow_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_PumpFlow_GRN_PIN, ON.");
-          IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
-          delay(1000);
+      Serial.println("LED_PumpFlow_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_PumpFlow_RED_PIN, ON.");
-          IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
-          delay(1000);
+      Serial.println("LED_AirFlow_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_AirFlow_GRN_PIN, ON.");
-          IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
-          delay(1000);
+      Serial.println("LED_AirFlow_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_AirFlow_RED_PIN, ON.");
-          IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
-          delay(1000);
+      Serial.println("LED_CL_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_CL_GRN_PIN, ON.");
-          IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
-          delay(1000);
+      Serial.println("LED_CL_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_CL_RED_PIN, ON.");
-          IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
-          delay(1000);
+      Serial.println("LED_Alarm_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_Alarm_RED_PIN, ON.");
-          IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
-          delay(1000);
+      Serial.println("LED_BT_BLU_PIN, ON.");
+      IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
+      delay(1000);
 
-          Serial.println("LED_BT_BLU_PIN, ON.");
-          IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
-          delay(1000);
-
-          Serial.println("All off.");
-          IOExpander.writeGPIOA(OFF);
-          IOExpander.writeGPIOB(OFF);
-          delay(1000);
-        } */
+      Serial.println("All off.");
+      IOExpander.writeGPIOA(OFF);
+      IOExpander.writeGPIOB(OFF);
+      delay(1000);
+    } */
   }
   /*****************************************************************************************************/
   /********************* oled  ********************/
@@ -668,7 +671,7 @@ void setup()
   DEBUGPRINT("Waiting for Network:");
 
   OLED_Display.setCursor(0, 0);
-  OLED_Display.println("TurdF v G");           // line version displ
+  OLED_Display.println("TurdF v 2a");          // line version displ
   OLED_Display.println("Connecting to SSID:"); // line 2
   OLED_Display.println(WIFI_SSID);             // line 3
   OLED_Display.print("Waiting for Network:");
@@ -1182,12 +1185,13 @@ void loop()
 
   /********************  blue tooth ************************/
   BTStatusFlag = digitalRead(BTStatusPin); // BTStatus from hc-05 mod
-  LEDControl(&IOExpander, Norm, LED_Auto_GRN_PIN, OFF);
-  LEDControl(&IOExpander, Norm, LED_Auto_RED_PIN, ON);
+
   // BT Status ON - read serial1
   if (BTStatusFlag == ON)
   {
-    LEDControl(&IOExpander, Norm, LED_BT_BLU_PIN, ON);
+
+    Serial.println("1188 &IOExpander, Bluetooth, ON");
+    LEDControl(&IOExpander, Bluetooth, ON);
     /////////////   Receive and Process APP Data
     while (Serial1.available() > 0)
     {
@@ -1276,7 +1280,8 @@ void loop()
   }
   else
   {
-    LEDControl(&IOExpander, Norm, LED_BT_BLU_PIN, OFF);
+    // Serial.println("1278 &IOExpander, Bluetooth, OFF");
+    // LEDControl(&IOExpander, Bluetooth, OFF);
   }
 
   /************************** The following are called from timers********************/
@@ -1308,13 +1313,19 @@ void loop()
     // if bad reading run fault display
     if (StatusLevelSensor != 0)
     {
+      Serial.println("1311 &IOExpander, LevelHi, ON");
+      LEDControl(&IOExpander, LevelHi, ON);
       if (AutoPositionFlag) // run test in auto only
       {
         TestPwrSupply();
         TestLevelSensor();
         AlarmControl = ON;
-        /************************** led=PumpRed, flashstate=flash,*/
       }
+    }
+    else
+    {
+      //Serial.println("1322 &IOExpander, LevelHi, OFF");
+      LEDControl(&IOExpander, LevelHi, OFF);
     }
 
     // sensor air read
@@ -1324,11 +1335,18 @@ void loop()
     //  if bad reading run fault display
     if (StatusAirSensor != 0)
     {
+      Serial.println("1333 &IOExpander, AirNoFlow, ON");
+      LEDControl(&IOExpander, AirNoFlow, ON);
       if (AutoPositionFlag) // run test in auto only
       {
         TestPwrSupply();
         TestAirSensor();
       }
+    }
+    else
+    {
+      //Serial.println("1343 &IOExpander, AirNoFlow, OFF");
+      LEDControl(&IOExpander, AirNoFlow, OFF);
     }
 
     // sensor cl level read
@@ -1338,13 +1356,19 @@ void loop()
     //  if bad reading run fault display
     if (StatusCLSensor == ON) // mag detected
     {
+      Serial.println("1354 &IOExpander, CLLow, ON");
+      LEDControl(&IOExpander, CLLow, ON);
       if (AutoPositionFlag) // run test in auto only
       {
         TestPwrSupply();
         TestCLSensor();
       }
     }
-
+    else
+    {
+      //Serial.println("1364 &IOExpander, CLLow, OFF");
+      LEDControl(&IOExpander, CLLow, OFF);
+    }
     // sensor water level read
     StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
     Serial.println("FLOWSensorUpdate");
@@ -1353,38 +1377,40 @@ void loop()
     //  if bad reading run fault display
     if (StatusWaterPump == ON && StatusWaterFlowSensor == OFF)
     {
+      Serial.println("1375 (&IOExpander, PumpNoFlow, on");
+      LEDControl(&IOExpander, PumpNoFlow, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
-        LEDControl(&IOExpander, PumpNoFlow, LED_PumpFlow_RED_PIN, ON);
+
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
         // delay(1000);
       }
-      else
-      {
-
-        LEDControl(&IOExpander, PumpNoFlow, LED_PumpFlow_RED_PIN, OFF);
-      }
     }
-
+    else
+    {
+      //Serial.println("1387 &IOExpander, PumpNoFlow, OFF");
+      LEDControl(&IOExpander, PumpNoFlow, OFF);
+    }
     if (StatusWaterPump == OFF && StatusWaterFlowSensor == ON)
     {
+      Serial.println("1394 &IOExpander, PumpNoFlow, ON");
+      LEDControl(&IOExpander, PumpNoFlow, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
-        LEDControl(&IOExpander, PumpNoFlow, LED_PumpFlow_RED_PIN, ON);
+
         TestWaterFlowSensor();
         // Serial.println("StatusWaterPump == OFF && StatusWaterFlowSensor == ON");
         // delay(1000);
       }
-      else
-      {
-
-        LEDControl(&IOExpander, PumpNoFlow, LED_PumpFlow_RED_PIN, OFF);
-      }
     }
-
+    else
+    {
+      // ??? Serial.println("1406 &IOExpander, PumpNoFlow, ON");
+      // ??? LEDControl(&IOExpander, PumpNoFlow, ON);
+    }
     SensorReadFlag = OFF;
   }
 
@@ -1785,9 +1811,9 @@ void LevelControl(void)
 
   if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
   {
-
+    Serial.println("1811 (&IOExpander, LevelHi, ON");
     AlarmControl = ON;
-    LEDControl(&IOExpander, LevelHi, LED_Alarm_RED_PIN, ON);
+    LEDControl(&IOExpander, LevelHi, ON);
 
     // DEBUGPRINT(" AutoAlarmStatusON ");
     // DEBUGPRINTLN(StatusAlarm);
@@ -1797,7 +1823,8 @@ void LevelControl(void)
   {
 
     AlarmControl = OFF;
-    LEDControl(&IOExpander, LevelHi, LED_Alarm_RED_PIN, OFF);
+    Serial.println("1823 (&IOExpander, LevelHi, OFF");
+    LEDControl(&IOExpander, LevelHi, OFF);
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
     // DEBUGPRINT(" AutoAlarmStatusOFF ");
     // DEBUGPRINTLN(StatusAlarm);
@@ -2767,16 +2794,15 @@ void pressed(Button2 &btn)
         */
 
       AutoManControl = ON;
-
+      Serial.println("2794 &IOExpander, AutoInManual, OFF");
+      LEDControl(&IOExpander, AutoInManual, OFF);
       if (SSWMode != 1) // comming from another switch position
       {
-
         digitalWrite(PumpPin, OFF);
         digitalWrite(AlarmPin, OFF);
         // digitalWrite(CLPumpPin, OFF);
         SSWMode = 1;
-        LEDControl(&IOExpander, Norm, LED_Auto_GRN_PIN, ON);
-        LEDControl(&IOExpander, Norm, LED_Auto_RED_PIN, OFF);
+
         DisplayOn();
         // DisplayState = ON;
         // DisplayUpdate();
@@ -2800,8 +2826,8 @@ void pressed(Button2 &btn)
       AlarmManControl = OFF; // set in menu
 
       AutoManControl = OFF;
-      LEDControl(&IOExpander, Norm, LED_Auto_GRN_PIN, OFF);
-      LEDControl(&IOExpander, Norm, LED_Auto_RED_PIN, ON);
+      Serial.println("2826 &IOExpander, AutoInManual, ON");
+      LEDControl(&IOExpander, AutoInManual, ON);
       if (DisplayState == OFF) // turn display on but do not restart screen off timer
       {
 
@@ -2832,9 +2858,8 @@ void pressed(Button2 &btn)
       AlarmManControl = OFF;
 
       AutoManControl = OFF;
-
-      LEDControl(&IOExpander, Norm, LED_Auto_GRN_PIN, OFF);
-      LEDControl(&IOExpander, Norm, LED_Auto_RED_PIN, ON);
+      Serial.println("2858 &IOExpander, AutoInManual, ON");
+      LEDControl(&IOExpander, AutoInManual, ON);
 
       digitalWrite(PumpPin, OFF);
       digitalWrite(AlarmPin, OFF);
@@ -2856,7 +2881,8 @@ void pressed(Button2 &btn)
       AlarmManControl = OFF;
 
       AutoManControl = OFF;
-
+      Serial.println("2887 &IOExpander, AutoInManual, ON");
+      LEDControl(&IOExpander, AutoInManual, ON);
       if (DisplayState == OFF)
       {
         DisplayOn();
@@ -2889,6 +2915,7 @@ void pressed(Button2 &btn)
     AutoPositionFlag = ON;
 
     AutoManControl = ON;
+    // ???? LEDControl(&IOExpander, AutoInManual, ON);
   }
 }
 
