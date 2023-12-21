@@ -17,7 +17,7 @@ bool ReadWaterFlowSensor(int PIN)
     }
 }
 
-bool ReadCLSensor(int PIN)
+/* bool ReadCLSensor(int PIN)
 {
     if (digitalRead(PIN) == HIGH)
     {
@@ -27,7 +27,7 @@ bool ReadCLSensor(int PIN)
     {
         return true; // magnet detected
     }
-}
+} */
 
 /* void ReadSwitches(Select_SW *SwState) // Adafruit_SSD1306 *OLED_Display)
 {
@@ -116,7 +116,7 @@ int ReadAirPump(Adafruit_MPRLS *AirSen, AirSensor *AirSenVal)
 }
 
 // returns Status of sensor ans fill struc with values
-int ReadLevelSensor(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal, int CNum)
+int ReadSensorIF(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal, int CNum)
 {
 
     int SensorFailType = 0;
@@ -264,34 +264,34 @@ int ReadLevelSensor(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal,
     if (CNum == 2)
     {
 
-        if (SensorLevelVal->BusV < 4) // set for low 5v
-        {
+        /*         if (SensorLevelVal->BusV < 4) // set for low 5v
+                {
 
-            // SensorFailCount++;
-            SensorFailType = 1;
-        }
-        else if (SensorLevelVal->BusV > 5.5) // set for hi 5v
-        {
-            // SensorFailCount++;
-            SensorFailType = 2;
-        }
+                    // SensorFailCount++;
+                    SensorFailType = 1;
+                }
+                else if (SensorLevelVal->BusV > 5.5) // set for hi 5v
+                {
+                    // SensorFailCount++;
+                    SensorFailType = 2;
+                }
 
-        if (SensorLevelVal->ShuntImA <= 0) //////////// set for low 5v current
-        {
+                if (SensorLevelVal->ShuntImA <= 0) //////////// set for low 5v current
+                {
 
-            // SensorFailCount++;
-            SensorFailType = 1;
-        }
-        else if (SensorLevelVal->ShuntImA > 750) //////////// set for hi 5v current
-        {
-            // SensorFailCount++;
-            SensorFailType = 2;
-        }
-        else //////////// good 5v
-        {
-            // SensorFailCount = 0;
-            SensorFailType = 0;
-        }
+                    // SensorFailCount++;
+                    SensorFailType = 1;
+                }
+                else if (SensorLevelVal->ShuntImA > 750) //////////// set for hi 5v current
+                {
+                    // SensorFailCount++;
+                    SensorFailType = 2;
+                }
+                else //////////// good 5v
+                {
+                    // SensorFailCount = 0;
+                    SensorFailType = 0;
+                } */
 
         //  SensorFailCount = 0; ////////////////////////////////////
         /*         if (SensorFailCount > 5)

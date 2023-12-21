@@ -79,11 +79,12 @@
                       need to check BT because removed CL Pump
               done - add water flow sw/cl sw status to off menu
               done - major update to ticker
+              done - mcp23017 for led, may still need some clean up
+                      fixed - confilict with mprls
 
               inwork -
+                      move cl sensor back to SensorIF - use 50k current limit
 
-                  add mcp23017 for led and maybe alrm control
-                    fixed - confilict with mprls
 
                   add alarm flags and alarm timer beep
                   add air flow read/setting to pump menu
@@ -398,6 +399,7 @@ void SendAppDataSetFlag();     // set flag to run app update
 boolean SendAppDataFlag = OFF; // update flag
 
 /************************ timer ************************/
+
 Ticker SDTimer(SD_UpdateSetFlag, SD_interval, 0, MILLIS);            // how often to write to SD Card
 Ticker APPTimer(SendAppData, APP_interval, 0, MILLIS);               // how often to Update BT App
 Ticker SensorTimer(SensorReadSetFlag, Sensor_interval, 0, MILLIS);   // how often to Read Sensor
@@ -406,7 +408,6 @@ Ticker DisplayOffTimer(DisplayOffSetFlag, DISP_TimeOut);             // when to 
 // Ticker ReadWaterSWTimer;
 Ticker BlinkerTimer(BlinkSetFlag, Blink_interval, 0, MILLIS);
 // Ticker CLPumpTimer;     // how long to run CLPump
-
 /*************************************************************************
  ********************** Init Hardware
  ************************************************************************/
@@ -638,7 +639,7 @@ void setup()
       IOExpander.writeGPIOA(OFF);
       IOExpander.writeGPIOB(OFF);
       delay(1000);
-    } */
+    }*/
   }
   /*****************************************************************************************************/
   /********************* oled  ********************/
@@ -1308,7 +1309,7 @@ void loop()
   if (SensorReadFlag == ON)
   {
     // Sensor Level Read();
-    StatusLevelSensor = ReadLevelSensor(&ina3221, &Sensor_Level_Values, Chan2);
+    StatusLevelSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan2);
     Serial.println("LevelSensorUpdate");
     // if bad reading run fault display
     if (StatusLevelSensor != 0)
@@ -1324,7 +1325,7 @@ void loop()
     }
     else
     {
-      //Serial.println("1322 &IOExpander, LevelHi, OFF");
+      // Serial.println("1322 &IOExpander, LevelHi, OFF");
       LEDControl(&IOExpander, LevelHi, OFF);
     }
 
@@ -1345,12 +1346,13 @@ void loop()
     }
     else
     {
-      //Serial.println("1343 &IOExpander, AirNoFlow, OFF");
+      // Serial.println("1343 &IOExpander, AirNoFlow, OFF");
       LEDControl(&IOExpander, AirNoFlow, OFF);
     }
 
     // sensor cl level read
-    StatusCLSensor = ReadCLSensor(CLLevelSW);
+    // StatusCLSensor = ReadCLSensor(CLLevelSW);
+    StatusCLSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan3);
     Serial.println("CLSensorUpdate");
     // Serial.printf("Status CL Sensor: %d", StatusCLSensor);
     //  if bad reading run fault display
@@ -1366,7 +1368,7 @@ void loop()
     }
     else
     {
-      //Serial.println("1364 &IOExpander, CLLow, OFF");
+      // Serial.println("1364 &IOExpander, CLLow, OFF");
       LEDControl(&IOExpander, CLLow, OFF);
     }
     // sensor water level read
@@ -1390,7 +1392,7 @@ void loop()
     }
     else
     {
-      //Serial.println("1387 &IOExpander, PumpNoFlow, OFF");
+      // Serial.println("1387 &IOExpander, PumpNoFlow, OFF");
       LEDControl(&IOExpander, PumpNoFlow, OFF);
     }
     if (StatusWaterPump == OFF && StatusWaterFlowSensor == ON)
@@ -1428,6 +1430,7 @@ void loop()
     DisplayOff();
     DisplayOffFlag = OFF;
   }
+
   /********* run every loop *********/
   Pump(PumpControl);
   // CLPump();
@@ -2055,7 +2058,7 @@ void TestPwrSupply()
   for (int i = 0; i <= 6; i++)
   {
 
-    StatusPS = ReadLevelSensor(&ina3221, &Sensor_Level_Values, PSType);
+    StatusPS = ReadSensorIF(&ina3221, &Sensor_Level_Values, PSType);
     delay(100);
   }
   // set up display
@@ -2183,7 +2186,7 @@ void TestLevelSensor()
 
   for (int i = 0; i <= 6; i++)
   {
-    StatusLevelSensor = ReadLevelSensor(&ina3221, &Sensor_Level_Values, Chan2);
+    StatusLevelSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan2);
     delay(100);
   }
 
@@ -2463,7 +2466,8 @@ void TestCLSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
-    StatusCLSensor = ReadCLSensor(CLLevelSW);
+    StatusCLSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan3);
+    // StatusCLSensor = ReadCLSensor(CLLevelSW);
     delay(100);
   }
 

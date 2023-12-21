@@ -51,9 +51,9 @@ struct AirSensor
     float pressure_PSI = 0;
 };
 
-int ReadLevelSensor(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal, int CNum);
+int ReadSensorIF(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal, int CNum);
 int ReadAirPump(Adafruit_MPRLS *AirSen, AirSensor *AirSenVal);
-bool ReadCLSensor(int PIN);
+// bool ReadCLSensor(int PIN);
 bool ReadWaterFlowSensor(int PIN);
 double mapf(double var, double InMin, double InMax, double OutMin, double OutMax);
 
