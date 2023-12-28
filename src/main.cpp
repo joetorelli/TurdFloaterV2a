@@ -51,6 +51,37 @@
                 G moved to git hub
                   BT =  has OLED Display and SSW inop
 
+                V2
+
+                  inwork -
+                      move cl sensor back to SensorIF - use 50k current limit/ do the same to water flow sw
+                       REMOVE READWATERFLOWSENSOR
+                      move to readsensorif
+                      remove references of power supply from resdsensorif
+
+                      menu system setup
+
+                      add alarm flags and alarm timer beep
+                      add air flow read/setting to pump menu
+
+                  splitting files
+                    HMI = OLED, LEDs
+                    Actuator = Pump, Alarm
+                    Menu = menusystem
+                    Sensor = Water,Air Press, CL
+                    INA3221 = Lib
+                    Switches = SSW control
+                    BlueTooth = BT COntrol, Screens
+                    WIFICont = WIFI Control, WEB Pages
+
+
+                 open -
+                  add air pressure level adj to warning trigger
+                  looking into web page, will move to esp32v2
+                  add alarm if not in auto after some time
+
+                  Connect to ESPHome
+                  Vol adj to PWM for alarm works on screen
 
             Need to fix
               done - Pump LED flashes from man to auto
@@ -82,33 +113,9 @@
               done - mcp23017 for led, may still need some clean up
                       fixed - confilict with mprls
 
-              inwork -
-                      move cl sensor back to SensorIF - use 50k current limit
 
 
-                  add alarm flags and alarm timer beep
-                  add air flow read/setting to pump menu
 
-                  splitting files
-                    HMI = OLED, LEDs
-                    Actuator = Pump, Alarm
-                    Menu = menusystem
-                    Sensor = Water,Air Press, CL
-                    INA3221 = Lib
-                    Switches = SSW control
-                    BlueTooth = BT COntrol, Screens
-                    WIFICont = WIFI Control, WEB Pages
-
-                  menu system setup
-
-
-              open -
-                  add air pressure level adj to warning trigger
-                  looking into web page, will move to esp32v2
-                  add alarm if not in auto after some time
-
-                  Connect to ESPHome
-                  Vol adj to PWM for alarm works on screen
 
 
               I2C Adr
