@@ -2469,7 +2469,7 @@ void TestCLSensor()
   OLED_Display.setTextSize(1);
   OLED_Display.println("Testing...");
   OLED_Display.display();
-
+  // SHOULD AVERAGE THESE VALUES
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
