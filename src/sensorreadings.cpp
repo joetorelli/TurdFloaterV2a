@@ -5,115 +5,6 @@
 #include "OLED.h"
 
 // //#include "mqttController.h"
-bool ReadWaterFlowSensor(int PIN)
-{
-    if (digitalRead(PIN) == HIGH)
-    {
-        return false; // no flow
-    }
-    else
-    {
-        return true; // flow
-    }
-}
-
-/* bool ReadCLSensor(int PIN)
-{
-    if (digitalRead(PIN) == HIGH)
-    {
-        return false; // no mag
-    }
-    else
-    {
-        return true; // magnet detected
-    }
-} */
-
-/* void ReadSwitches(Select_SW *SwState) // Adafruit_SSD1306 *OLED_Display)
-{
-    int SSWAutoPin = 4;   // auto/man pos  BUTTON_A
-    int SSWAlarmPin = 36; // alarm pos BUTTON_B
-    int SSWOffPin = 39;   // off pos BUTTON_C
-    int SSWPumpPin = 34;  // pump pos BUTTON_C
-
-    if (digitalRead(SSWAutoPin) == 0)
-    {
-        SwState->Switch_Auto = 1;
-    }
-    else
-    {
-        SwState->Switch_Auto = 0;
-    }
-
-    if (!digitalRead(SSWAlarmPin))
-    {
-        SwState->Switch_Alarm = 1;
-    }
-    else
-    {
-        SwState->Switch_Alarm = 0;
-    }
-
-    if (!digitalRead(SSWOffPin))
-    {
-        SwState->Switch_Off = 1;
-    }
-    else
-    {
-        SwState->Switch_Off = 0;
-    }
-
-    if (!digitalRead(SSWPumpPin))
-    {
-        SwState->Switch_Pump = 1;
-    }
-    else
-    {
-        SwState->Switch_Pump = 0;
-    }
-}
- */
-
-// pressure sensor
-int ReadAirPump(Adafruit_MPRLS *AirSen, AirSensor *AirSenVal)
-{
-    int SensorFailType = 0;
-    int Reading = 0;
-
-    AirSenVal->pressure_hPa = AirSen->readPressure();
-    AirSenVal->pressure_PSI = AirSenVal->pressure_hPa / 68.947572932;
-    // Serial.print("Pressure (hPa): ");
-    // Serial.println(AirSenVal->pressure_hPa);
-    // Serial.print("Pressure (PSI): ");
-    // Serial.println(AirSenVal->pressure_PSI);
-    Reading = AirSenVal->pressure_hPa;
-
-    if (isnan(AirSenVal->pressure_hPa)) // not found
-    {
-        Reading = 0;
-        SensorFailType = 1;
-        // Serial.printf("**************NAN Air Sensor: %d", SensorFailType);
-    }
-    else if (AirSenVal->pressure_hPa <= 950) // low filter clogged?
-
-    {
-        SensorFailType = 2;
-        // Serial.printf("**************LOW Air Sensor: %d", SensorFailType);
-    }
-    else if (AirSenVal->pressure_hPa >= 1100) // hi air plugged?
-
-    {
-        SensorFailType = 3;
-        // Serial.printf("**************HIGH Air Sensor: %d", SensorFailType);
-    }
-    else // good
-    {
-        SensorFailType = 0;
-        // Serial.printf("**************GOOD Air Sensor: %d", SensorFailType);
-    }
-
-    return SensorFailType;
-}
 
 // returns Status of sensor ans fill struc with values
 
@@ -133,10 +24,11 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     // B1 2nd element =
     // 3rd element = scal vals convert ma to mm chan
     //                         B1             B2
-    double in_min[2][3] = {{0, 0, 4.98}, {0, 0, 4.98}};
-    double in_max[2][3] = {{1, 1, 20.00}, {1, 1, 20.00}};
-    double out_min[2][3] = {{0, 0, 240.0}, {0, 0, 240.0}};
-    double out_max[2][3] = {{1, 1, 3000}, {1, 1, 3000}};
+    //                     wf, cl, af  3v,12v, wl
+    double in_min[2][3] = {{0, 0, 0}, {0, 0, 4.98}};
+    double in_max[2][3] = {{1, 1, 5}, {3, 12, 20.00}};
+    double out_min[2][3] = {{0, 0, 0}, {0, 0, 240.0}};
+    double out_max[2][3] = {{1, 1, 30}, {3, 12, 3000}};
 
     current_ma[BNum][CNum] = SensorIFBoard->getCurrent_mA(CNum + 1) * 1000;
     voltage[BNum][CNum] = SensorIFBoard->getBusVoltage_V(CNum + 1);
@@ -267,9 +159,9 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         }
 
         // test for bad reading
-        if (CNum == 2) // Air flow switch
+        if (CNum == 2) // Air flow sensor
         {
-            if (SensorValue->BusV < 11) // set for low 12v
+            if (SensorValue->BusV < 0) // set for low 12v
             {
 
                 // SensorFailCount++;

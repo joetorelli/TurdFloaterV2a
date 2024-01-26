@@ -458,8 +458,8 @@ struct SensorData Sensor_Level_Values;
 const int Chan1 = 0;
 const int Chan2 = 1;
 const int Chan3 = 2;
-const int  Board1 = 0;
-const int  Board2 = 1;
+const int Board1 = 0;
+const int Board2 = 1;
 int StatusLevelSensor = 0;
 
 /***********************  encoder  *********************/
@@ -499,13 +499,13 @@ void pressed(Button2 &btn); // when button/sw pressed
 /***********************  air (pressure) sensor  *****************/
 // You dont *need* a reset and EOC pin for most uses, so we set to -1 and don't connect
 // i2c adr 0x18
-#define RESET_PIN -1 // set to any GPIO pin # to hard-reset on begin()
+/* #define RESET_PIN -1 // set to any GPIO pin # to hard-reset on begin()
 #define EOC_PIN -1   // set to any GPIO pin to read end-of-conversion by pin
 Adafruit_MPRLS AirFlowSensor = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 struct AirSensor AirPump;
 int StatusAirSensor = 0;
 bool StatusCLSensor = OFF;
-;
+; */
 
 /************************   mcp expander  ****************************/
 Adafruit_MCP23X17 IOExpander;
@@ -1028,7 +1028,7 @@ void setup()
   // ina3221.setChannelDisable(INA3221_CH3);
 
   //////////////////////////////////////////////////testing values for avg, effects response time
-   INA0.setAveragingMode(INA3221_REG_CONF_AVG_64);
+  INA0.setAveragingMode(INA3221_REG_CONF_AVG_64);
   //  Sets bus-voltage conversion time.
   INA0.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
   //  Sets shunt-voltage conversion time.
@@ -1037,7 +1037,7 @@ void setup()
   //  Sets bus-voltage conversion time.
   INA1.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
   //  Sets shunt-voltage conversion time.
-  INA1.setShuntConversionTime(INA3221_REG_CONF_CT_1100US); 
+  INA1.setShuntConversionTime(INA3221_REG_CONF_CT_1100US);
   /****************************   NVM   ************************/
   // test for first run time
   Settings.begin("storage", RO_MODE); // nvm storage space, set to read
@@ -1416,7 +1416,8 @@ void loop()
     }
 
     // sensor air read
-    StatusAirSensor = ReadAirPump(&AirFlowSensor, &AirPump);
+    //*************************************************************** change to ReadSensorIF for Air
+    // StatusAirSensor = ReadAirPump(&AirFlowSensor, &AirPump);
     Serial.println("AirSensorUpdate");
     // Serial.printf("Status Air Sensor: %d", StatusAirSensor);
     //  if bad reading run fault display
@@ -2271,7 +2272,7 @@ void TestLevelSensor()
 
   for (int i = 0; i <= 6; i++)
   {
-    StatusLevelSensor = ReadSensorIF(&INA1, &Sensor_Level_Values,Board2, Chan3);
+    StatusLevelSensor = ReadSensorIF(&INA1, &Sensor_Level_Values, Board2, Chan3);
     delay(100);
   }
 
@@ -2551,7 +2552,7 @@ void TestCLSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
-    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values,Board1, Chan2);
+    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan2);
     // StatusCLSensor = ReadCLSensor(CLLevelSW);
     delay(100);
   }
