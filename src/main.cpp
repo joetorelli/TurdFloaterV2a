@@ -52,8 +52,14 @@
                   BT =  has OLED Display and SSW inop
 
                 V2A
-                   - moved to esp32v2
-                   - mpc23017 and leds corrected pins
+                  git branch:Master
+                    copy of vG
+                  git branch:mpc23017
+                    moved to esp32v2
+                    mpc23017 and leds corrected pins
+                  git branch:NewHardware
+                    using working prototype harware
+                    adding 2nd INA3221
 
                   inwork -
                       move cl sensor back to SensorIF - use 50k current limit/ do the same to water flow sw
@@ -70,7 +76,7 @@
                     HMI = OLED, LEDs
                     Actuator = Pump, Alarm
                     Menu = menusystem
-                    Sensor = Water,Air Press, CL
+                    Sensor = WaterLevel, Air Press, CL, AirFlow, WaterFlow
                     INA3221 = Lib
                     Switches = SSW control
                     BlueTooth = BT COntrol, Screens
@@ -79,7 +85,7 @@
 
                  open -
                   add air pressure level adj to warning trigger
-                  looking into web page 
+                  looking into web page
                   done - will move to esp32v2
                   add alarm if not in auto after some time
 
@@ -225,14 +231,14 @@
 **********************************************/
 /********************************* changed pin definition on ver F
  * stopped using analog and allowed for better connections  ****************/
-#define AlarmPin 12 // Alarm
-#define PumpPin 13  //  Pump
-#define SD_CS 33 // SD Card
+#define AlarmPin 12    // Alarm
+#define PumpPin 13     //  Pump
+#define SD_CS 33       // SD Card
 #define BTStatusPin 36 // bluetooth
 
 // assign i2c pin numbers              //////// changed for esp32v2**************
-//#define I2c_SDA SDA
-//#define I2c_SCL SCL
+// #define I2c_SDA SDA
+// #define I2c_SCL SCL
 
 // NVM Mode - EEPROM on ESP32
 #define RW_MODE false
@@ -435,21 +441,25 @@ struct tm timeinfo;
 
 /**********************  ina3221  ********************/
 // #include "SDL_Arduino_INA3221.h"
-static const uint8_t _INA_addr = 64; //  0x40 I2C address of sdl board
+static const uint8_t _INA1_addr = 64; //  hex 40 I2C address of 1st sdl board
+static const uint8_t _INA2_addr = 65; //  hex 41 I2C address of 2nd sdl board
 
 // tweeked the resistor value while measuring the current (@11.5ma center of 4-20ma) with a meter. To make the numbers very close.
 // with sig gen
 // ina3221(address, chan1 shunt miliohm, chan2 shunt miliohm, chan3 shunt miliohm)
-SDL_Arduino_INA3221 ina3221(_INA_addr, 105, 7530, 105); // 6170, 7590, 8200);
+SDL_Arduino_INA3221 INA0(_INA1_addr, 105, 7530, 105); // 6170, 7590, 8200);
+SDL_Arduino_INA3221 INA1(_INA2_addr, 105, 105, 105);  // 6170, 7590, 8200)
 // the 7.5ohm resistor works out he best. Shunt mv=~30-150, max out of register at 163.8mv.
 //  this leaves some head room for when sensor fails and goes max
 //  need to add test condition for <4ma(open) and >20ma (fault)
-struct LevelSensor Sensor_Level_Values;
+struct SensorData Sensor_Level_Values;
+
 // values for 3 chan
 const int Chan1 = 0;
 const int Chan2 = 1;
 const int Chan3 = 2;
-
+const int  Board1 = 0;
+const int  Board2 = 1;
 int StatusLevelSensor = 0;
 
 /***********************  encoder  *********************/
@@ -540,7 +550,7 @@ void setup()
 
   // serial ports
   Serial1.begin(9600); // bluetooth mod   needs to be 19200
-  Serial.begin(9600); // debug
+  Serial.begin(9600);  // debug
   DEBUGPRINTLN("Serial 0 Start");
 
   /***************************** pin properties  ******************/
@@ -570,7 +580,7 @@ void setup()
   // digitalWrite(CLPumpPin, OFF);
 
   /********************   init i2c  *****************/
-  Wire.begin();                                             //////// changed for esp32v2  (I2c_SDA, I2c_SCL);
+  Wire.begin(); //////// changed for esp32v2  (I2c_SDA, I2c_SCL);
   // bool status; // connect status
   DEBUGPRINTLN("I2C INIT OK");
 
@@ -604,107 +614,106 @@ void setup()
     IOExpander.writeGPIOA(OFF);
     IOExpander.writeGPIOB(OFF);
 
-
     // LED TEST
-  /*    while (1)
-    {
-      Serial.println("LED_Alarm_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_Alarm_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_Alarm_RED_PIN, OFF);
-      delay(2000);
+    /*    while (1)
+      {
+        Serial.println("LED_Alarm_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_Alarm_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_Alarm_RED_PIN, OFF);
+        delay(2000);
 
 
-      Serial.println("LED_Remote_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_Remote_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_Remote_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_Remote_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_Remote_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_Remote_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_Remote_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_Remote_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_Auto_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
-      delay(2000);
-      Serial.println("LED_Auto_GRN_PIN, OFF.");
-      IOExpander.digitalWrite(LED_Auto_GRN_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_Auto_GRN_PIN, ON.");
+        IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
+        delay(2000);
+        Serial.println("LED_Auto_GRN_PIN, OFF.");
+        IOExpander.digitalWrite(LED_Auto_GRN_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_Auto_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_Auto_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_Auto_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_Auto_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_Auto_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_Auto_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_WL_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_WL_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_WL_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_WL_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_WL_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_WL_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_WL_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_WL_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_WL_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_WL_GRN_PIN, ON);
-      delay(2000);
-      Serial.println("LED_WL_GRN_PIN, OFF.");
-      IOExpander.digitalWrite(LED_WL_GRN_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_WL_GRN_PIN, ON.");
+        IOExpander.digitalWrite(LED_WL_GRN_PIN, ON);
+        delay(2000);
+        Serial.println("LED_WL_GRN_PIN, OFF.");
+        IOExpander.digitalWrite(LED_WL_GRN_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_CL_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
-      delay(2000);
-      Serial.println("LED_CL_GRN_PIN, OFF.");
-      IOExpander.digitalWrite(LED_CL_GRN_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_CL_GRN_PIN, ON.");
+        IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
+        delay(2000);
+        Serial.println("LED_CL_GRN_PIN, OFF.");
+        IOExpander.digitalWrite(LED_CL_GRN_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_CL_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_CL_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_CL_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_CL_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_CL_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_CL_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_PumpFlow_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
-      delay(2000);
-      Serial.println("LED_PumpFlow_GRN_PIN, OFF.");
-      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_PumpFlow_GRN_PIN, ON.");
+        IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
+        delay(2000);
+        Serial.println("LED_PumpFlow_GRN_PIN, OFF.");
+        IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_PumpFlow_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_PumpFlow_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_PumpFlow_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_PumpFlow_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_AirFlow_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
-      delay(2000);
-      Serial.println("LED_AirFlow_GRN_PIN, OFF.");
-      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_AirFlow_GRN_PIN, ON.");
+        IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
+        delay(2000);
+        Serial.println("LED_AirFlow_GRN_PIN, OFF.");
+        IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_AirFlow_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
-      delay(2000);
-      Serial.println("LED_AirFlow_RED_PIN, OFF.");
-      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_AirFlow_RED_PIN, ON.");
+        IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
+        delay(2000);
+        Serial.println("LED_AirFlow_RED_PIN, OFF.");
+        IOExpander.digitalWrite(LED_AirFlow_RED_PIN, OFF);
+        delay(2000);
 
-      Serial.println("LED_BT_BLU_PIN, ON.");
-      IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
-      delay(2000);
-      Serial.println("LED_BT_BLU_PIN, OFF.");
-      IOExpander.digitalWrite(LED_BT_BLU_PIN, OFF);
-      delay(2000);
+        Serial.println("LED_BT_BLU_PIN, ON.");
+        IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
+        delay(2000);
+        Serial.println("LED_BT_BLU_PIN, OFF.");
+        IOExpander.digitalWrite(LED_BT_BLU_PIN, OFF);
+        delay(2000);
 
-      Serial.println("All off.");
-      IOExpander.writeGPIOA(OFF);
-      IOExpander.writeGPIOB(OFF);
-      delay(1000);
-    } */
+        Serial.println("All off.");
+        IOExpander.writeGPIOA(OFF);
+        IOExpander.writeGPIOB(OFF);
+        delay(1000);
+      } */
   }
   /*****************************************************************************************************/
   /********************* oled  ********************/
@@ -999,24 +1008,36 @@ void setup()
 
   /*************************  ina3221  ************************/
   // setup ina3221 SDL lib
-  ina3221.begin();
-  // Serial.println("ina3221.begin");
-  //  en/dis channel as needed. effects response time
-  ina3221.setChannelEnable(INA3221_CH1);
-  ina3221.setChannelEnable(INA3221_CH2);
-  ina3221.setChannelEnable(INA3221_CH3);
+  Serial.println("Start INA0/1");
+  INA0.begin();
+  INA1.begin();
+  Serial.print("getManufID0: ");
+  Serial.println(INA0.getManufID());
+  Serial.print("getManufID1: ");
+  Serial.println(INA1.getManufID());
+  delay(5000);
+  // en/dis channel as needed. effects response time   INA0.setChannelEnable(INA3221_CH1);
+  INA0.setChannelEnable(INA3221_CH2);
+  INA0.setChannelEnable(INA3221_CH3);
 
-  // ina3221.setChannelDisable(INA3221_CH1);
-  //  ina3221.setChannelDisable(INA3221_CH2);
+  INA1.setChannelEnable(INA3221_CH1);
+  INA1.setChannelEnable(INA3221_CH2);
+  INA1.setChannelEnable(INA3221_CH3);
+  //  ina3221.setChannelDisable(INA3221_CH1);
+  // ina3221.setChannelDisable(INA3221_CH2);
   // ina3221.setChannelDisable(INA3221_CH3);
 
-  // values for avg, effects response time
-  ina3221.setAveragingMode(INA3221_REG_CONF_AVG_64);
+  //////////////////////////////////////////////////testing values for avg, effects response time
+   INA0.setAveragingMode(INA3221_REG_CONF_AVG_64);
   //  Sets bus-voltage conversion time.
-  ina3221.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
+  INA0.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
   //  Sets shunt-voltage conversion time.
-  ina3221.setShuntConversionTime(INA3221_REG_CONF_CT_1100US);
-
+  INA0.setShuntConversionTime(INA3221_REG_CONF_CT_1100US);
+  INA1.setAveragingMode(INA3221_REG_CONF_AVG_64);
+  //  Sets bus-voltage conversion time.
+  INA1.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
+  //  Sets shunt-voltage conversion time.
+  INA1.setShuntConversionTime(INA3221_REG_CONF_CT_1100US); 
   /****************************   NVM   ************************/
   // test for first run time
   Settings.begin("storage", RO_MODE); // nvm storage space, set to read
@@ -1373,8 +1394,8 @@ void loop()
   // called from timer->SensorReadSetFlag->SensorReadFlag=ON
   if (SensorReadFlag == ON)
   {
-    // Sensor Level Read();
-    StatusLevelSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan2);
+    // Sensor Water Level - INA Board 2 Chan 3
+    StatusLevelSensor = ReadSensorIF(&INA1, &Sensor_Level_Values, Board2, Chan3);
     Serial.println("LevelSensorUpdate");
     // if bad reading run fault display
     if (StatusLevelSensor != 0)
@@ -1415,9 +1436,8 @@ void loop()
       LEDControl(&IOExpander, AirNoFlow, OFF);
     }
 
-    // sensor cl level read
-    // StatusCLSensor = ReadCLSensor(CLLevelSW);
-    StatusCLSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan3);
+    // sensor cl level read  - INA Board 1 Chan 2
+    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan2);
     Serial.println("CLSensorUpdate");
     // Serial.printf("Status CL Sensor: %d", StatusCLSensor);
     //  if bad reading run fault display
@@ -2123,7 +2143,7 @@ void TestPwrSupply()
   for (int i = 0; i <= 6; i++)
   {
 
-    StatusPS = ReadSensorIF(&ina3221, &Sensor_Level_Values, PSType);
+    StatusPS = ReadSensorIF(&INA1, &Sensor_Level_Values, Board2, Chan2);
     delay(100);
   }
   // set up display
@@ -2251,7 +2271,7 @@ void TestLevelSensor()
 
   for (int i = 0; i <= 6; i++)
   {
-    StatusLevelSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan2);
+    StatusLevelSensor = ReadSensorIF(&INA1, &Sensor_Level_Values,Board2, Chan3);
     delay(100);
   }
 
@@ -2531,7 +2551,7 @@ void TestCLSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
-    StatusCLSensor = ReadSensorIF(&ina3221, &Sensor_Level_Values, Chan3);
+    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values,Board1, Chan2);
     // StatusCLSensor = ReadCLSensor(CLLevelSW);
     delay(100);
   }

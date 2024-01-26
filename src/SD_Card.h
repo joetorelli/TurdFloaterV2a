@@ -29,6 +29,5 @@ void deleteFile(fs::FS &fs, const char *path);
 
 // void Refresh_SD(DateTime *RTCClk, BME_Sensor *SenEVal, LevelSensor *SenLVal);
 // void Refresh_SD(DateTime *RTCClk, BME_Sensor *SenEVal, LevelSensor *SenLVal, int cntr);
-//void Refresh_SD(DateTime *RTCClk, LevelSensor *SenLVal, double cntr);
-void Refresh_SD(DateTime *RTCClk, LevelSensor *SenLVal, double cntr,int PmpPltVal, int AlrmPltVal, int CLPmpPltVal);
-
+// void Refresh_SD(DateTime *RTCClk, LevelSensor *SenLVal, double cntr);
+void Refresh_SD(DateTime *RTCClk, SensorData *SensorValue, double cntr, int PmpPltVal, int AlrmPltVal, int CLPmpPltVal);

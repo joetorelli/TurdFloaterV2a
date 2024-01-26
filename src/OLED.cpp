@@ -3,7 +3,7 @@
 // #include "settings.h"
 // #include "sensor_readings.h"
 
-void DisplayLevelSensor(Adafruit_SSD1327 *Disp, LevelSensor *SenLevVal)
+void DisplayLevelSensor(Adafruit_SSD1327 *Disp, SensorData *SensorValue)
 {
     /*  SenLevVal Struct
         int ShuntVRaw = 0;
@@ -22,7 +22,7 @@ void DisplayLevelSensor(Adafruit_SSD1327 *Disp, LevelSensor *SenLevVal)
         Disp->println(SenLevVal->ShuntVmv, 2); */
     Disp->setTextSize(2);
 
-    Disp->printf("  %d mm\n", SenLevVal->DepthMM);
+    Disp->printf("  %d mm\n", SensorValue->DepthMM);
     // Disp->print(SenLevVal->DepthMM);
     // Disp->print(" MM");
     // Disp->print(" IN: ");
@@ -31,7 +31,7 @@ void DisplayLevelSensor(Adafruit_SSD1327 *Disp, LevelSensor *SenLevVal)
 }
 
 // just used to show save count on display
-void OLED_Light(Adafruit_SSD1327 *Disp, double LT, LevelSensor *SenLevVal)
+void OLED_Light(Adafruit_SSD1327 *Disp, double LT, SensorData *SensorValue)
 {
 
     Disp->print("#");

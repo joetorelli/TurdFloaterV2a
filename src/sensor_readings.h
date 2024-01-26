@@ -33,7 +33,7 @@ struct Select_SW
     int Switch_Pump = 0;
 };
 
-struct LevelSensor
+struct SensorData
 {
     int ShuntVRaw = 0;
     float ShuntVmv = 0;
@@ -51,7 +51,7 @@ struct AirSensor
     float pressure_PSI = 0;
 };
 
-int ReadSensorIF(SDL_Arduino_INA3221 *LevSensor, LevelSensor *SensorLevelVal, int CNum);
+int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);
 int ReadAirPump(Adafruit_MPRLS *AirSen, AirSensor *AirSenVal);
 // bool ReadCLSensor(int PIN);
 bool ReadWaterFlowSensor(int PIN);

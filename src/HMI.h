@@ -9,14 +9,6 @@
 //  port GPA 0-7 pin 0-7
 //  port GPB 0-7 pin 8-15
 
-#define LED_Alarm_RED_PIN 8
-#define LED_BT_BLU_PIN 9
-// #define PIN 2
-// #define PIN 3
-// #define PIN 4
-// #define PIN 5
-// #define PIN 6
-// #define PIN 7
 
 /* MCP23x17
 Pin #	Pin Name	Pin ID
