@@ -51,7 +51,9 @@
                 G moved to git hub
                   BT =  has OLED Display and SSW inop
 
-                V2
+                V2A
+                   - moved to esp32v2
+                   - mpc23017 and leds corrected pins
 
                   inwork -
                       move cl sensor back to SensorIF - use 50k current limit/ do the same to water flow sw
@@ -77,7 +79,8 @@
 
                  open -
                   add air pressure level adj to warning trigger
-                  looking into web page, will move to esp32v2
+                  looking into web page 
+                  done - will move to esp32v2
                   add alarm if not in auto after some time
 
                   Connect to ESPHome
@@ -224,16 +227,12 @@
  * stopped using analog and allowed for better connections  ****************/
 #define AlarmPin 12 // Alarm
 #define PumpPin 13  //  Pump
-// #define CLPumpPin 27 //  Chlorine Pump
-//  #define SensorPin 34 ////////////////// Sensor
-
 #define SD_CS 33 // SD Card
-
 #define BTStatusPin 36 // bluetooth
 
-// assign i2c pin numbers
-#define I2c_SDA 23
-#define I2c_SCL 22
+// assign i2c pin numbers              //////// changed for esp32v2**************
+//#define I2c_SDA SDA
+//#define I2c_SCL SCL
 
 // NVM Mode - EEPROM on ESP32
 #define RW_MODE false
@@ -541,7 +540,7 @@ void setup()
 
   // serial ports
   Serial1.begin(9600); // bluetooth mod   needs to be 19200
-  Serial.begin(57600); // debug
+  Serial.begin(9600); // debug
   DEBUGPRINTLN("Serial 0 Start");
 
   /***************************** pin properties  ******************/
@@ -571,7 +570,7 @@ void setup()
   // digitalWrite(CLPumpPin, OFF);
 
   /********************   init i2c  *****************/
-  Wire.begin(I2c_SDA, I2c_SCL);
+  Wire.begin();                                             //////// changed for esp32v2  (I2c_SDA, I2c_SCL);
   // bool status; // connect status
   DEBUGPRINTLN("I2C INIT OK");
 
@@ -588,65 +587,124 @@ void setup()
     Serial.println(" IO Expander ok ");
     /****   expander pins   *****/
     // configure pin for output
+
     IOExpander.pinMode(LED_Alarm_RED_PIN, OUTPUT);
-    IOExpander.pinMode(LED_BT_BLU_PIN, OUTPUT);
+    IOExpander.pinMode(LED_Remote_RED_PIN, OUTPUT);
     IOExpander.pinMode(LED_Auto_GRN_PIN, OUTPUT);
     IOExpander.pinMode(LED_Auto_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_WL_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_WL_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_CL_GRN_PIN, OUTPUT);
+    IOExpander.pinMode(LED_CL_RED_PIN, OUTPUT);
     IOExpander.pinMode(LED_PumpFlow_GRN_PIN, OUTPUT);
     IOExpander.pinMode(LED_PumpFlow_RED_PIN, OUTPUT);
     IOExpander.pinMode(LED_AirFlow_GRN_PIN, OUTPUT);
     IOExpander.pinMode(LED_AirFlow_RED_PIN, OUTPUT);
-    IOExpander.pinMode(LED_CL_GRN_PIN, OUTPUT);
-    IOExpander.pinMode(LED_CL_RED_PIN, OUTPUT);
+    IOExpander.pinMode(LED_BT_BLU_PIN, OUTPUT);
     IOExpander.writeGPIOA(OFF);
     IOExpander.writeGPIOB(OFF);
-    /* while (1)
+
+
+    // LED TEST
+  /*    while (1)
     {
+      Serial.println("LED_Alarm_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
+      delay(2000);
+      Serial.println("LED_Alarm_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_Alarm_RED_PIN, OFF);
+      delay(2000);
+
+
+      Serial.println("LED_Remote_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_Remote_RED_PIN, ON);
+      delay(2000);
+      Serial.println("LED_Remote_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_Remote_RED_PIN, OFF);
+      delay(2000);
+
       Serial.println("LED_Auto_GRN_PIN, ON.");
       IOExpander.digitalWrite(LED_Auto_GRN_PIN, ON);
-      delay(1000);
+      delay(2000);
+      Serial.println("LED_Auto_GRN_PIN, OFF.");
+      IOExpander.digitalWrite(LED_Auto_GRN_PIN, OFF);
+      delay(2000);
 
-      Serial.println("LED_Auto_RED_PIN, On.");
+      Serial.println("LED_Auto_RED_PIN, ON.");
       IOExpander.digitalWrite(LED_Auto_RED_PIN, ON);
-      delay(1000);
+      delay(2000);
+      Serial.println("LED_Auto_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_Auto_RED_PIN, OFF);
+      delay(2000);
 
-      Serial.println("LED_PumpFlow_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
-      delay(1000);
+      Serial.println("LED_WL_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_WL_RED_PIN, ON);
+      delay(2000);
+      Serial.println("LED_WL_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_WL_RED_PIN, OFF);
+      delay(2000);
 
-      Serial.println("LED_PumpFlow_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
-      delay(1000);
-
-      Serial.println("LED_AirFlow_GRN_PIN, ON.");
-      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
-      delay(1000);
-
-      Serial.println("LED_AirFlow_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
-      delay(1000);
+      Serial.println("LED_WL_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_WL_GRN_PIN, ON);
+      delay(2000);
+      Serial.println("LED_WL_GRN_PIN, OFF.");
+      IOExpander.digitalWrite(LED_WL_GRN_PIN, OFF);
+      delay(2000);
 
       Serial.println("LED_CL_GRN_PIN, ON.");
       IOExpander.digitalWrite(LED_CL_GRN_PIN, ON);
-      delay(1000);
+      delay(2000);
+      Serial.println("LED_CL_GRN_PIN, OFF.");
+      IOExpander.digitalWrite(LED_CL_GRN_PIN, OFF);
+      delay(2000);
 
       Serial.println("LED_CL_RED_PIN, ON.");
       IOExpander.digitalWrite(LED_CL_RED_PIN, ON);
-      delay(1000);
+      delay(2000);
+      Serial.println("LED_CL_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_CL_RED_PIN, OFF);
+      delay(2000);
 
-      Serial.println("LED_Alarm_RED_PIN, ON.");
-      IOExpander.digitalWrite(LED_Alarm_RED_PIN, ON);
-      delay(1000);
+      Serial.println("LED_PumpFlow_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, ON);
+      delay(2000);
+      Serial.println("LED_PumpFlow_GRN_PIN, OFF.");
+      IOExpander.digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
+      delay(2000);
+
+      Serial.println("LED_PumpFlow_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, ON);
+      delay(2000);
+      Serial.println("LED_PumpFlow_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_PumpFlow_RED_PIN, OFF);
+      delay(2000);
+
+      Serial.println("LED_AirFlow_GRN_PIN, ON.");
+      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, ON);
+      delay(2000);
+      Serial.println("LED_AirFlow_GRN_PIN, OFF.");
+      IOExpander.digitalWrite(LED_AirFlow_GRN_PIN, OFF);
+      delay(2000);
+
+      Serial.println("LED_AirFlow_RED_PIN, ON.");
+      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, ON);
+      delay(2000);
+      Serial.println("LED_AirFlow_RED_PIN, OFF.");
+      IOExpander.digitalWrite(LED_AirFlow_RED_PIN, OFF);
+      delay(2000);
 
       Serial.println("LED_BT_BLU_PIN, ON.");
       IOExpander.digitalWrite(LED_BT_BLU_PIN, ON);
-      delay(1000);
+      delay(2000);
+      Serial.println("LED_BT_BLU_PIN, OFF.");
+      IOExpander.digitalWrite(LED_BT_BLU_PIN, OFF);
+      delay(2000);
 
       Serial.println("All off.");
       IOExpander.writeGPIOA(OFF);
       IOExpander.writeGPIOB(OFF);
       delay(1000);
-    }*/
+    } */
   }
   /*****************************************************************************************************/
   /********************* oled  ********************/

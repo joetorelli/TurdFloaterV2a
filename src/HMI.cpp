@@ -1,6 +1,22 @@
 #include <Arduino.h>
 #include "HMI.h"
 extern bool BlinkState;
+
+//  LED_Alarm_RED_PIN 15
+//  LED_Remote_RED_PIN 14
+// LED_Auto_RED_PIN 13
+//  LED_Auto_GRN_PIN 12
+//  LED_WL_RED_PIN 11
+//  LED_WL_GRN_PIN 10
+//  LED_CL_RED_PIN 9
+// LED_CL_GRN_PIN 8
+
+//  LED_PumpFlow_RED_PIN 0
+//  LED_PumpFlow_GRN_PIN 1
+//  LED_AirFlow_RED_PIN 2
+//  LED_AirFlow_GRN_PIN 3
+//  LED_BT_BLU_PIN 4
+
 /* set all leds to off at start when all outputs turned off*/
 void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 {
@@ -108,19 +124,19 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 		break;
 	case 6: // Wireless
 		Serial.println("******************Wireless********************");
-		// if (state == ON)
-		// {
+		if (state == ON)
+		{
 
-		// 	Expndr->digitalWrite(LED_BT_GRN_PIN, BlinkState);
-		// 	Expndr->digitalWrite(LED_Auto_GRN_PIN, OFF);
-		// 	Expndr->digitalWrite(LED_Auto_RED_PIN, ON);
-		// }
-		// else
-		// {
-		// 	Expndr->digitalWrite(LED_BT_GRN_PIN, OFF);
-		// 	Expndr->digitalWrite(LED_Auto_GRN_PIN, ON);
-		// 	Expndr->digitalWrite(LED_Auto_RED_PIN, OFF);
-		// }
+			Expndr->digitalWrite(LED_Remote_RED_PIN, BlinkState);
+			Expndr->digitalWrite(LED_Auto_GRN_PIN, OFF);
+			Expndr->digitalWrite(LED_Auto_RED_PIN, ON);
+		}
+		else
+		{
+			Expndr->digitalWrite(LED_Remote_RED_PIN, OFF);
+			Expndr->digitalWrite(LED_Auto_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_Auto_RED_PIN, OFF);
+		}
 
 		break;
 
