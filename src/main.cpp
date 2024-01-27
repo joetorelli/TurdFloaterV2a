@@ -271,11 +271,13 @@
 // alarm states
 const byte AutoInManual = 0;
 const byte LevelHi = 1;
-const byte PumpNoFlow = 2;
-const byte AirNoFlow = 3;
-const byte CLLow = 4;
-const byte Bluetooth = 5;
-const byte Wireless = 6;
+const byte PumpFlowFault = 2;
+const byte PumpFlow = 3;
+const byte AirFlowFault = 4;
+const byte AirFlow = 5;
+const byte CLLow = 6;
+const byte Bluetooth = 7;
+const byte Wireless = 8;
 bool BlinkState;
 /********************/
 
@@ -503,10 +505,10 @@ void pressed(Button2 &btn); // when button/sw pressed
 #define EOC_PIN -1   // set to any GPIO pin to read end-of-conversion by pin
 Adafruit_MPRLS AirFlowSensor = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 struct AirSensor AirPump;
+
+; */
 int StatusAirSensor = 0;
 bool StatusCLSensor = OFF;
-; */
-
 /************************   mcp expander  ****************************/
 Adafruit_MCP23X17 IOExpander;
 
@@ -1150,18 +1152,19 @@ void setup()
   }
 
   /********************* init pressure sensor ***************/
-  Serial.println("MPRLS Simple Test");
-  if (!AirFlowSensor.begin())
-  {
-    Serial.println("Failed to communicate with MPRLS sensor, check wiring?");
+  // changed to ina3221 IF
+  /*   Serial.println("MPRLS Simple Test");
+    if (!AirFlowSensor.begin())
+    {
+      Serial.println("Failed to communicate with MPRLS sensor, check wiring?");
 
-    delay(1000);
-  }
-  else
-  {
-    Serial.println("Found MPRLS sensor");
-    delay(1000);
-  }
+      delay(1000);
+    }
+    else
+    {
+      Serial.println("Found MPRLS sensor");
+      delay(1000);
+    } */
   /*************************  Start the timers ****************/
 
   SDTimer.start();      // set flag to write to sd
@@ -1368,7 +1371,7 @@ void loop()
   else
   {
     // Serial.println("1278 &IOExpander, Bluetooth, OFF");
-    // LEDControl(&IOExpander, Bluetooth, OFF);
+    LEDControl(&IOExpander, Bluetooth, OFF);
   }
 
   /************************** The following are called from timers********************/
@@ -1390,7 +1393,7 @@ void loop()
     Serial.println("SD_Update");
   }
 
-  // Update level Sensor *********/
+  // Update WaterLevel Sensor *********/
   // called from timer->SensorReadSetFlag->SensorReadFlag=ON
   if (SensorReadFlag == ON)
   {
@@ -1415,16 +1418,17 @@ void loop()
       LEDControl(&IOExpander, LevelHi, OFF);
     }
 
-    // sensor air read
-    //*************************************************************** change to ReadSensorIF for Air
-    // StatusAirSensor = ReadAirPump(&AirFlowSensor, &AirPump);
+    // update AirFlow Sensor
+
+    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan3);
     Serial.println("AirSensorUpdate");
     // Serial.printf("Status Air Sensor: %d", StatusAirSensor);
     //  if bad reading run fault display
     if (StatusAirSensor != 0)
     {
-      Serial.println("1333 &IOExpander, AirNoFlow, ON");
-      LEDControl(&IOExpander, AirNoFlow, ON);
+      Serial.println("1333 &IOExpander, AirFlowFault, ON");
+      LEDControl(&IOExpander, AirFlow, ON);
+      LEDControl(&IOExpander, AirFlowFault, ON);
       if (AutoPositionFlag) // run test in auto only
       {
         TestPwrSupply();
@@ -1433,8 +1437,9 @@ void loop()
     }
     else
     {
-      // Serial.println("1343 &IOExpander, AirNoFlow, OFF");
-      LEDControl(&IOExpander, AirNoFlow, OFF);
+      // Serial.println("1343 &IOExpander, AirFlowFault, OFF");
+      LEDControl(&IOExpander, AirFlowFault, OFF);
+      LEDControl(&IOExpander, AirFlow, ON);
     }
 
     // sensor cl level read  - INA Board 1 Chan 2
@@ -1458,15 +1463,15 @@ void loop()
       LEDControl(&IOExpander, CLLow, OFF);
     }
     // sensor water level read
-    StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
+    StatusWaterFlowSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
     Serial.println("FLOWSensorUpdate");
     Serial.printf("Pump: %d, Water: %d\n", StatusWaterPump, StatusWaterFlowSensor);
 
     //  if bad reading run fault display
     if (StatusWaterPump == ON && StatusWaterFlowSensor == OFF)
     {
-      Serial.println("1375 (&IOExpander, PumpNoFlow, on");
-      LEDControl(&IOExpander, PumpNoFlow, ON);
+      Serial.println("1375 (&IOExpander, PumpFlowFault, on");
+      LEDControl(&IOExpander, PumpFlowFault, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
@@ -1478,13 +1483,13 @@ void loop()
     }
     else
     {
-      // Serial.println("1387 &IOExpander, PumpNoFlow, OFF");
-      LEDControl(&IOExpander, PumpNoFlow, OFF);
+      // Serial.println("1387 &IOExpander, PumpFlowFault, OFF");
+      LEDControl(&IOExpander, PumpFlowFault, OFF);
     }
     if (StatusWaterPump == OFF && StatusWaterFlowSensor == ON)
     {
-      Serial.println("1394 &IOExpander, PumpNoFlow, ON");
-      LEDControl(&IOExpander, PumpNoFlow, ON);
+      Serial.println("1394 &IOExpander, PumpFlowFault, ON");
+      LEDControl(&IOExpander, PumpFlowFault, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
         /************************** led=PumpRed, flashstate=flash,*/
@@ -1496,8 +1501,8 @@ void loop()
     }
     else
     {
-      // ??? Serial.println("1406 &IOExpander, PumpNoFlow, ON");
-      // ??? LEDControl(&IOExpander, PumpNoFlow, ON);
+      // ??? Serial.println("1406 &IOExpander, PumpFlowFault, ON");
+      // ??? LEDControl(&IOExpander, PumpFlowFault, ON);
     }
     SensorReadFlag = OFF;
   }
@@ -2177,9 +2182,9 @@ void TestPwrSupply()
     OLED_Display.printf("%s OK \n\r", Type.c_str());
     OLED_Display.setTextSize(1);
     OLED_Display.print("Volts: ");
-    OLED_Display.println(Sensor_Level_Values.BusV, 1);
+    OLED_Display.println(Sensor_Level_Values.BusV[Board2][Chan2], 1);
     OLED_Display.print("Current: ");
-    OLED_Display.println(Sensor_Level_Values.ShuntImA, 1);
+    OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan2], 1);
     OLED_Display.display();
     delay(1000);
     break;
@@ -2190,11 +2195,11 @@ void TestPwrSupply()
     OLED_Display.setTextSize(1);
     OLED_Display.println("");
     OLED_Display.print("Volts: ");
-    OLED_Display.println(Sensor_Level_Values.BusV, 1);
+    OLED_Display.println(Sensor_Level_Values.BusV[Board2][Chan2], 1);
     // OLED_Display.printf("Volts: %d\n\r", Sensor_Level_Values.LoadV);
     // OLED_Display.printf("Current: %f.1\n\r", Sensor_Level_Values.ShuntImA);
     OLED_Display.print("Current: ");
-    OLED_Display.println(Sensor_Level_Values.ShuntImA, 1);
+    OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan2], 1);
     OLED_Display.println("");
     OLED_Display.println("Check Wiring");
     OLED_Display.println("");
@@ -2213,10 +2218,10 @@ void TestPwrSupply()
     OLED_Display.println("");
     // OLED_Display.printf("Volts: %d\n\r", Sensor_Level_Values.LoadV);
     OLED_Display.print("Volts: ");
-    OLED_Display.println(Sensor_Level_Values.BusV, 1);
+    OLED_Display.println(Sensor_Level_Values.BusV[Board2][Chan2], 1);
     // OLED_Display.printf("Current: %f.1\n\r", Sensor_Level_Values.ShuntImA);
     OLED_Display.print("Current: ");
-    OLED_Display.println(Sensor_Level_Values.ShuntImA, 1);
+    OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan2], 1);
     OLED_Display.println("");
     OLED_Display.printf("Replace %s \n", Type.c_str());
     OLED_Display.display();
@@ -2291,9 +2296,9 @@ void TestLevelSensor()
     OLED_Display.println("Passed");
     OLED_Display.setTextSize(1);
     OLED_Display.print("Volts: ");
-    OLED_Display.println(Sensor_Level_Values.BusV, 1);
+    OLED_Display.println(Sensor_Level_Values.BusV[Board2][Chan3], 1);
     OLED_Display.print("Current: ");
-    OLED_Display.println(Sensor_Level_Values.ShuntImA, 1);
+    OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan3], 1);
     OLED_Display.display();
     delay(1000);
     break;
@@ -2324,9 +2329,9 @@ void TestLevelSensor()
     OLED_Display.setTextSize(1);
     OLED_Display.println("");
     OLED_Display.print("Volts: ");
-    OLED_Display.println(Sensor_Level_Values.BusV, 1);
+    OLED_Display.println(Sensor_Level_Values.BusV[Board2][Chan3], 1);
     OLED_Display.print("Current: ");
-    OLED_Display.println(Sensor_Level_Values.ShuntImA, 1);
+    OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan3], 1);
 
     OLED_Display.println("");
     OLED_Display.print("Replace Sensor");
@@ -2381,14 +2386,14 @@ void TestAirSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor air read
-    StatusAirSensor = ReadAirPump(&AirFlowSensor, &AirPump);
+    StatusAirSensor  = ReadSensorIF(&INA1, &Sensor_Level_Values, Board1, Chan3);
     delay(100);
   }
 
   switch (StatusAirSensor)
   {
 
-  case 0:
+  case 0:   //good reading
     TestMenu.nodeIndex = 2;
     TestMenu.build(&OLED_Display);
     // OLED_Display.printf("Volts: %d\n\r", Sensor_Level_Values.LoadV);
@@ -2398,15 +2403,15 @@ void TestAirSensor()
     OLED_Display.setTextSize(2);
     OLED_Display.println("Passed");
     OLED_Display.setTextSize(1);
-    OLED_Display.print("HPA: ");
-    OLED_Display.println(AirPump.pressure_hPa, 1);
+    // OLED_Display.print("HPA: ");
+    // OLED_Display.println(AirPump.pressure_hPa, 1);
     OLED_Display.print("PSI: ");
-    OLED_Display.println(AirPump.pressure_PSI, 1);
+    OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
     delay(1000);
     break;
 
-  case 1:
+  case 1:   // sensor not found
 
     OLED_Display.setTextSize(2);
     OLED_Display.println("Air SensorNot Found");
@@ -2421,12 +2426,12 @@ void TestAirSensor()
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
-    delay(5000);
+    delay(1000);
     AlarmToggle();
     delay(1000);
     break;
 
-  case 2:
+  case 2:   //sensor low press
     // OLED_Display.println("");
     OLED_Display.setTextSize(2);
 
@@ -2434,19 +2439,19 @@ void TestAirSensor()
     OLED_Display.setTextSize(1);
     OLED_Display.println("");
     OLED_Display.println("Check Air Filter");
-    OLED_Display.print("HPA: ");
-    OLED_Display.println(AirPump.pressure_hPa, 1);
+    // OLED_Display.print("HPA: ");
+    // OLED_Display.println(AirPump.pressure_hPa, 1);
     OLED_Display.print("PSI: ");
-    OLED_Display.println(AirPump.pressure_PSI, 1);
+    OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
-    delay(5000);
+    delay(1000);
     AlarmToggle();
     delay(1000);
     break;
 
-  case 3:
+  case 3:   //sensor hi press
     // OLED_Display.println("");
     OLED_Display.setTextSize(2);
 
@@ -2454,14 +2459,14 @@ void TestAirSensor()
     OLED_Display.setTextSize(1);
     OLED_Display.println("");
     OLED_Display.println("Check for plug");
-    OLED_Display.print("HPA: ");
-    OLED_Display.println(AirPump.pressure_hPa, 1);
+    // OLED_Display.print("HPA: ");
+    // OLED_Display.println(AirPump.pressure_hPa, 1);
     OLED_Display.print("PSI: ");
-    OLED_Display.println(AirPump.pressure_PSI, 1);
+    OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
     AlarmToggle();
-    delay(5000);
+    delay(1000);
     AlarmToggle();
     delay(1000);
     break;
@@ -2495,7 +2500,7 @@ void TestWaterFlowSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
-    StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
+    StatusWaterFlowSensor = ReadSensorIF(&INA1, &Sensor_Level_Values, Board1, Chan1);
     delay(100);
   }
 

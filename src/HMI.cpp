@@ -34,8 +34,8 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 		else
 		{
 			Serial.println("********  NOT IN AUTO  OFF  *********");
-			Expndr->digitalWrite(LED_Auto_RED_PIN, OFF);
 			Expndr->digitalWrite(LED_Auto_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_Auto_RED_PIN, OFF);
 		}
 
 		break;
@@ -45,73 +45,117 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 		if (state == ON)
 		{
 			Serial.println("*****  level hi  ON  ********");
-			// Expndr->digitalWrite(LED_Alarm_GRN_PIN, OFF);
+			Expndr->digitalWrite(LED_WL_GRN_PIN, OFF);
+			Expndr->digitalWrite(LED_WL_RED_PIN, ON);
 			Expndr->digitalWrite(LED_Alarm_RED_PIN, BlinkState);
 		}
 		else
 		{
 			Serial.println("*****  level hi  OFF  ********");
+			Expndr->digitalWrite(LED_WL_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_WL_RED_PIN, OFF);
 			Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
 			// Expndr->digitalWrite(LED_Alarm_GRN_PIN, OFF);
 		}
 
 		break;
-	case 2: // PumpNoFlow
+	case 2: // PumpFlowFault
 
 		if (state == ON)
 		{
 			Serial.println("*****  pump no flow   ON  ******");
 			Expndr->digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
-			Expndr->digitalWrite(LED_PumpFlow_RED_PIN, BlinkState);
+			Expndr->digitalWrite(LED_PumpFlow_RED_PIN, ON);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, BlinkState);
 		}
 		else
 		{
 			Serial.println("****  pump no flow   OFF  *****");
+			Expndr->digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
 			Expndr->digitalWrite(LED_PumpFlow_RED_PIN, OFF);
-			Expndr->digitalWrite(LED_PumpFlow_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
 		}
 
 		break;
-	case 3: // AirNoFlow
+
+	case 3: // PumpFlow
+
+		if (state == ON)
+		{
+			Serial.println("*****  pump flow   ON  ******");
+			Expndr->digitalWrite(LED_PumpFlow_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_PumpFlow_RED_PIN, OFF);
+		}
+		else
+		{
+			Serial.println("****  pump flow   OFF  *****");
+			Expndr->digitalWrite(LED_PumpFlow_GRN_PIN, OFF);
+			Expndr->digitalWrite(LED_PumpFlow_RED_PIN, OFF);
+		}
+
+		break;
+	case 4: // AirFlowFault
 
 		if (state == ON)
 		{
 			Serial.println("****  air no flow   ON  ****");
 			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, OFF);
-			Expndr->digitalWrite(LED_AirFlow_RED_PIN, BlinkState);
+			Expndr->digitalWrite(LED_AirFlow_RED_PIN, ON);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, BlinkState);
 		}
 		else
 		{
 			Serial.println("****  air no flow   OFF  ****");
+			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, OFF);
 			Expndr->digitalWrite(LED_AirFlow_RED_PIN, OFF);
-			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
 		}
 
 		break;
-	case 4: // CLLow
+
+	case 5: // AirFlow
+		if (state == ON)
+		{
+			Serial.println("****  air flow   ON  ****");
+			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_AirFlow_RED_PIN, OFF);
+		}
+		else
+		{
+			Serial.println("****  air flow   OFF  ****");
+			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_AirFlow_RED_PIN, OFF);
+			// Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
+		}
+
+		break;
+
+	case 6: // CL
 
 		if (state == ON)
 		{
 			Serial.println("*****  cl low   ON  ****");
 			Expndr->digitalWrite(LED_CL_GRN_PIN, OFF);
 			Expndr->digitalWrite(LED_CL_RED_PIN, ON);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, BlinkState);
 		}
 		else
 		{
 			Serial.println("****  cl low   OFF  *****");
-			Expndr->digitalWrite(LED_CL_RED_PIN, OFF);
 			Expndr->digitalWrite(LED_CL_GRN_PIN, ON);
+			Expndr->digitalWrite(LED_CL_RED_PIN, OFF);
+			Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
 		}
 
 		break;
-	case 5: // Bluetooth
+	case 7: // Bluetooth
 
 		if (state == ON)
 		{
 			Serial.println("****  BT   ON  ****");
-			Expndr->digitalWrite(LED_BT_BLU_PIN, BlinkState);
+			Expndr->digitalWrite(LED_BT_BLU_PIN, ON);
 			Expndr->digitalWrite(LED_Auto_GRN_PIN, OFF);
-			Expndr->digitalWrite(LED_Auto_RED_PIN, ON);
+			Expndr->digitalWrite(LED_Auto_RED_PIN, BlinkState);
 		}
 		else
 		{
@@ -122,14 +166,14 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 		}
 
 		break;
-	case 6: // Wireless
+	case 8: // Wireless
 		Serial.println("******************Wireless********************");
 		if (state == ON)
 		{
 
-			Expndr->digitalWrite(LED_Remote_RED_PIN, BlinkState);
+			Expndr->digitalWrite(LED_Remote_RED_PIN, ON);
 			Expndr->digitalWrite(LED_Auto_GRN_PIN, OFF);
-			Expndr->digitalWrite(LED_Auto_RED_PIN, ON);
+			Expndr->digitalWrite(LED_Auto_RED_PIN, BlinkState);
 		}
 		else
 		{

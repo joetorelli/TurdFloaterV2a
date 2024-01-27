@@ -8,14 +8,11 @@
 #include <Adafruit_Sensor.h>
 // #include <Adafruit_BME280.h>
 #include "INA3221.h"
-#include "Adafruit_MPRLS.h" // air sensor
 #include "settings.h"
 // #include "OLED.h"
 //  #include "sensor_readings.h"
-////#include <Adafruit_INA219.h>
-// #include <movingAvg.h>
 
-#define SEALEVELPRESSURE_HPA (1013.25)
+// #define SEALEVELPRESSURE_HPA (1013.25)
 
 // struct BME_Sensor
 // {
@@ -35,26 +32,30 @@ struct Select_SW
 
 struct SensorData
 {
-    int ShuntVRaw = 0;
-    float ShuntVmv = 0;
-    int BusVRaw = 0;
-    float BusV = 0;
-    float ShuntImA = 0;
-    float LoadV = 0;
-    float power_mW = 0;
+    // int ShuntVRaw = 0;
+    // float ShuntVmv = 0;
+    // int BusVRaw = 0;
+    // float LoadV[2][3];
+    // float power_mW = 0;
+
+    // values read from INA3221 boards
+    float BusV[2][3];
+    float ShuntImA[2][3];
+
+    // values for WaterLevel sensor
     float DepthIn = 0;
     int DepthMM = 0;
-};
-struct AirSensor
-{
-    float pressure_hPa = 0;
+
+    // value for AirPressure sensor
     float pressure_PSI = 0;
+
+    // values for chlorine sensor
+    int CLStatus = 0;
+    // values for WaterFlow sensor
+    int WFStatus = 0;
 };
 
 int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);
-int ReadAirPump(Adafruit_MPRLS *AirSen, AirSensor *AirSenVal);
-// bool ReadCLSensor(int PIN);
-bool ReadWaterFlowSensor(int PIN);
 double mapf(double var, double InMin, double InMax, double OutMin, double OutMax);
 
 #endif

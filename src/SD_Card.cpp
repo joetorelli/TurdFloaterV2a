@@ -156,7 +156,7 @@ void deleteFile(fs::FS &fs, const char *path)
 // void Refresh_SD(DateTime *RTCClk, BME_Sensor *SenVal)
 // void Refresh_SD(DateTime *RTCClk, BME_Sensor *SenEVal, LevelSensor *SenLVal, int cntr)
 // void Refresh_SD(DateTime *RTCClk, LevelSensor *SenLVal, double cntr)
-void Refresh_SD(DateTime *RTCClk, SensorData *SensorValue,  double cntr, int PmpPltVal, int AlrmPltVal, int CLPmpPltVal)
+void Refresh_SD(DateTime *RTCClk, SensorData *SensorValue, double cntr, int PmpPltVal, int AlrmPltVal, int CLPmpPltVal)
 {
 
     // String TimeStr = "";
@@ -218,7 +218,10 @@ void Refresh_SD(DateTime *RTCClk, SensorData *SensorValue,  double cntr, int Pmp
     // TimeStr = TimeStr + " T: " + SenEVal->f_temperature + " H: " + SenEVal->f_humidity + " L: " + SenLVal->SensorLevel;    Disp->print(" MM:");
 
     // TimeStr = TimeStr + ", " + SenLVal->DepthMM + ", " + SenLVal->DepthIn + ", " + SenEVal->f_temperature + ", " + SenEVal->f_humidity + "\r\n";
-    TimeStr = TimeStr + ",\t" + SensorValue->DepthMM + " mm,\t\t" + SensorValue->DepthIn + " in,\t" + SensorValue->ShuntImA + " ma,\t" + SensorValue->ShuntVmv + " mv,\t " + PmpPltVal + " pmp,\t" + AlrmPltVal + " alm,\t" + CLPmpPltVal + " clp" + "\r\n ";
+
+    float TempCurrent = SensorValue->ShuntImA[2][3];
+    float TempBusV = SensorValue->BusV[2][3];
+    TimeStr = TimeStr + ",\t" + SensorValue->DepthMM + " mm,\t\t" + SensorValue->DepthIn + " in,\t" + TempCurrent + " ma,\t" + TempBusV + " mv,\t " + PmpPltVal + " pmp,\t" + AlrmPltVal + " alm,\t" + CLPmpPltVal + " clp" + "\r\n ";
     DEBUGPRINT("TimeStr= ");
     DEBUGPRINTLN(TimeStr);
     appendFile(SD, "/datalog.txt", TimeStr.c_str());
