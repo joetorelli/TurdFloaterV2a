@@ -217,7 +217,7 @@
 
 #include "OLED.h"
 #include "HMI.h"
-
+#include "OutPutControl.h"
 #include "SD_Card.h"
 #include "Simple_Menu.h"
 #include "Button2.h"
@@ -231,8 +231,7 @@
 **********************************************/
 /********************************* changed pin definition on ver F
  * stopped using analog and allowed for better connections  ****************/
-#define AlarmPin 12    // Alarm
-#define PumpPin 13     //  Pump
+
 #define SD_CS 33       // SD Card
 #define BTStatusPin 36 // bluetooth
 
@@ -373,10 +372,9 @@ Preferences Settings; // NVM
 *******************  Sub/Function Declarations
 **********************************************************************/
 
-void WriteData(void);        // save to eprom
-void LevelControl(void);     // test water level
-void Alarm(bool AlarmOnOff); // alarm control auto/man & on/off
-void Pump(bool PumpOnOff);   // pump control auto/man & on/off
+void WriteData(void);    // save to eprom
+void LevelControl(void); // test water level
+
 // void CLPump(void);    // CLpump control on sets timer for off
 // void CLPumpOFF(void); // CLPump off
 
@@ -1209,7 +1207,7 @@ void setup()
   OLED_Display.setTextColor(SSD1327_WHITE);
 
   /****************   test menu run **********/
-  TestMenu.nodeIndex = 0;
+/*   TestMenu.nodeIndex = 0;
   TestMenu.build(&OLED_Display);
   delay(1000);
   TestMenu.choose(); // TestPwrSupply
@@ -1233,13 +1231,13 @@ void setup()
   TestMenu.nodeIndex = 4;
   TestMenu.build(&OLED_Display);
   TestMenu.choose(); // test water flow sensor
-  delay(1000);
+  delay(1000); */
 
   OLED_Display.clearDisplay();
   OLED_Display.setCursor(0, 0);
   OLED_Display.display();
 
-  TestMenu.nodeIndex = 0;
+  //TestMenu.nodeIndex = 0;
 
   // Force to Auto Position
   PumpPositionFlag = OFF;
@@ -1876,30 +1874,6 @@ void VolumeAdjust()
   // PumpMenu.choose();
 }
 
-// toggle pump on/off
-void PumpToggle()
-{
-
-  PumpManControl = !PumpManControl;
-  digitalWrite(PumpPin, PumpManControl);
-}
-
-// toggle clpump on/off
-/* void CLPumpToggle()
-{
-
-  CLPumpManFlag = !CLPumpManFlag;
-  digitalWrite(CLPumpPin, CLPumpManFlag);
-} */
-
-// toggle alram on/off
-void AlarmToggle()
-{
-
-  AlarmManControl = !AlarmManControl;
-  digitalWrite(AlarmPin, AlarmManControl);
-}
-
 void LevelControl(void)
 {
 
@@ -1959,160 +1933,6 @@ void LevelControl(void)
     // DEBUGPRINT(" AutoPumpStatusOFF ");
     //  DEBUGPRINTLN(StatusWaterPump);
   }
-}
-
-// Alaram Control
-void Alarm(bool AlarmOnOff)
-{
-
-  if (AutoManControl == ON)
-  {
-    if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
-    {
-      digitalWrite(AlarmPin, ON);
-      StatusAlarm = ON;
-      //************************** led=LED_PumpFlow_RED_PIN, flashstate=flash,*
-
-      // DEBUGPRINT(" AutoAlarmStatusON ");
-      // DEBUGPRINTLN(StatusAlarm);
-    }
-
-    if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
-    {
-      digitalWrite(AlarmPin, OFF); // to relay board
-      StatusAlarm = OFF;
-      //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
-      // DEBUGPRINT(" AutoAlarmStatusOFF ");
-      // DEBUGPRINTLN(StatusAlarm);
-    }
-  }
-
-  else // manual control
-  {
-    /*run timer for 1 hr the set alarm to remind to go to back to auto*/
-    /************************** led=autogrn, flashstate=on,*/
-    /************************** clearedled=autogrn, flashstate=on,*/
-
-    if (AlarmManControl == ON)
-    {
-      digitalWrite(AlarmPin, ON);
-      StatusAlarm = ON;
-      // DEBUGPRINT(" ManAlarmStatusON ");
-      //   DEBUGPRINTLN(StatusAlarm);
-    }
-    else
-    {
-      digitalWrite(AlarmPin, OFF);
-      StatusAlarm = OFF;
-      // DEBUGPRINT(" ManAlarmStatusOFF ");
-      //   DEBUGPRINTLN(StatusAlarm);
-    }
-  }
-}
-
-// Pump Control
-void Pump(bool PumpOnOff)
-{
-
-  if (AutoManControl == ON) // auto
-  {
-    if (Sensor_Level_Values.DepthMM >= PumpOnLevel)
-    {
-      digitalWrite(PumpPin, ON);
-      StatusWaterPump = ON;
-      // Serial.println(" AutoPumpStatusON ");
-      //  DEBUGPRINTLN(StatusWaterPump);
-      // CLPumpRunOnce = ON;
-      // delay(500);
-      // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-      // if (StatusWaterFlowSensor == OFF)
-      // {
-      //   TestWaterFlowSensor();
-      // }
-    }
-
-    if (Sensor_Level_Values.DepthMM <= PumpOffLevel)
-    {
-      digitalWrite(PumpPin, OFF);
-      StatusWaterPump = OFF;
-      // //      delay(500);
-      // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-      // DEBUGPRINT(" AutoPumpStatusOFF ");
-      //  DEBUGPRINTLN(StatusWaterPump);
-    }
-  }
-  else // manual control
-  {    ///////////////////////////////////////////////////// maybe changes this to PumpToggle
-
-    if (PumpManControl == ON)
-    {
-      digitalWrite(PumpPin, ON);
-      StatusWaterPump = ON;
-      // Serial.println("ManPumpStatusON ");
-      //   DEBUGPRINTLN(StatusWaterPump);
-      // delay(500);
-      // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-      // if (StatusWaterFlowSensor == OFF)
-      // {
-      //   TestWaterFlowSensor();
-      // }
-    }
-    else
-    {
-      digitalWrite(PumpPin, OFF);
-      StatusWaterPump = OFF;
-      // Serial.println("ManPumpStatusOFF ");
-
-      //   DEBUGPRINTLN(StatusWaterPump);
-      // delay(500);
-      // StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-      // if (StatusWaterFlowSensor == ON)
-      // {
-      //   TestWaterFlowSensor();
-      // }
-    }
-  }
-}
-
-// CLPump Control
-/* void CLPump(void)
-{
-  if (AutoManControl == ON) // auto
-  {
-
-    if (CLPumpRunOnce == ON && StatusWaterPump == OFF)
-    {
-
-      delay(500);
-      digitalWrite(CLPumpPin, ON);
-      DEBUGPRINTLN("CLPump ON Auto");
-      CLPumpStatus = ON;
-      CLPumpRunOnce = OFF; // set in pump()
-      CLPumpTimer.once(CLPump_RunTime, CLPumpOFF);
-    }
-  }
-  else // manual control
-  {
-    if (CLPumpManFlag == ON)
-    {
-      digitalWrite(CLPumpPin, ON);
-      CLPumpStatus = ON;
-      // DEBUGPRINT("CLPumpStatusON Man ");
-      //  DEBUGPRINTLN(CLPumpStatus);
-    }
-    else
-    {
-      digitalWrite(CLPumpPin, OFF);
-      CLPumpStatus = OFF;
-      // DEBUGPRINT("CLPumpStatusOFF Man ");
-      //  DEBUGPRINTLN(CLPumpStatus);
-    }
-  }
-} */
-
-// blank
-void testFunct()
-{
 }
 
 // read ina chans for power supply
