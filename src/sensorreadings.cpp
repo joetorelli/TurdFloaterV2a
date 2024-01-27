@@ -168,7 +168,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
 
                 SensorFailType = 1;
             }
-            else if (SensorValue->BusV[BNum][CNum] > 1)     // set for low press
+            else if (SensorValue->BusV[BNum][CNum] > 1) // set for low press
             {
 
                 SensorFailType = 2;
@@ -180,7 +180,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
                 SensorFailType = 3;
 
                 // pass bad val
-                //SensorValue->pressure_PSI = 0;
+                // SensorValue->pressure_PSI = 0;
             }
             else // good sensor
             {
@@ -191,7 +191,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
                 SensorValue->DepthMM = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 SensorValue->DepthIn = SensorValue->DepthMM / 25.4;
             }
-         }
+        }
         return SensorFailType;
     }
 
@@ -218,8 +218,6 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         ////// test for 12v
         if (CNum == 1)
         {
-
-
 
             if (SensorValue->BusV[BNum][CNum] < 9) // set for low 12v
             {
@@ -250,9 +248,6 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
                 SensorFailType = 0;
             }
         }
-
-
-
 
         // test water level
         if (CNum == 2)

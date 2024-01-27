@@ -1928,7 +1928,7 @@ void LevelControl(void)
   {
 
     PumpControl = ON;
-    // LEDControl(&IOExpander, OFF, LED_PumpFlow_RED_PIN, Flashing);
+    LEDControl(&IOExpander, PumpFlow, ON);
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
     //    DEBUGPRINT(" AutoAlarmStatusOFF ");
     //    DEBUGPRINTLN(StatusAlarm);
@@ -1948,6 +1948,7 @@ void LevelControl(void)
   {
 
     PumpControl = OFF;
+    LEDControl(&IOExpander, PumpFlow, ON);
     // LEDControl(&IOExpander, OFF, LED_PumpFlow_RED_PIN, Flashing);
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
     //  DEBUGPRINT(" AutoAlarmStatusOFF ");
@@ -1978,7 +1979,7 @@ void Alarm(bool AlarmOnOff)
 
     if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
     {
-      digitalWrite(AlarmPin, OFF);
+      digitalWrite(AlarmPin, OFF); // to relay board
       StatusAlarm = OFF;
       //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
       // DEBUGPRINT(" AutoAlarmStatusOFF ");
@@ -2386,14 +2387,14 @@ void TestAirSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor air read
-    StatusAirSensor  = ReadSensorIF(&INA1, &Sensor_Level_Values, Board1, Chan3);
+    StatusAirSensor = ReadSensorIF(&INA1, &Sensor_Level_Values, Board1, Chan3);
     delay(100);
   }
 
   switch (StatusAirSensor)
   {
 
-  case 0:   //good reading
+  case 0: // good reading
     TestMenu.nodeIndex = 2;
     TestMenu.build(&OLED_Display);
     // OLED_Display.printf("Volts: %d\n\r", Sensor_Level_Values.LoadV);
@@ -2411,7 +2412,7 @@ void TestAirSensor()
     delay(1000);
     break;
 
-  case 1:   // sensor not found
+  case 1: // sensor not found
 
     OLED_Display.setTextSize(2);
     OLED_Display.println("Air SensorNot Found");
@@ -2431,7 +2432,7 @@ void TestAirSensor()
     delay(1000);
     break;
 
-  case 2:   //sensor low press
+  case 2: // sensor low press
     // OLED_Display.println("");
     OLED_Display.setTextSize(2);
 
@@ -2451,7 +2452,7 @@ void TestAirSensor()
     delay(1000);
     break;
 
-  case 3:   //sensor hi press
+  case 3: // sensor hi press
     // OLED_Display.println("");
     OLED_Display.setTextSize(2);
 
