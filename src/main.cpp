@@ -232,12 +232,16 @@
 /********************************* changed pin definition on ver F
  * stopped using analog and allowed for better connections  ****************/
 
+// SPI
+// V1 MOSI=18; V2 MOSI=21
+// V1 MISO=19; V2 MISO=21
 #define SD_CS 33       // SD Card
+
 #define BTStatusPin 36 // bluetooth
 
 // assign i2c pin numbers              //////// changed for esp32v2**************
-// #define I2c_SDA SDA
-// #define I2c_SCL SCL
+ #define I2c_SDA SDA        //V1=23; V2=22
+ #define I2c_SCL SCL        //V1=22; V2=20
 
 // NVM Mode - EEPROM on ESP32
 #define RW_MODE false
@@ -300,6 +304,8 @@ byte StatusWaterPump = OFF; // Pump State On/Off
 byte StatusAlarm = OFF;     // Alarm State On/Off
 byte AlarmType = OFF;
 bool StatusWaterFlowSensor = OFF;
+int StatusAirSensor = 0;
+bool StatusCLSensor = OFF;
 // byte CLPumpStatus = OFF;  // CLPump On/Off
 // byte CLPumpManFlag = OFF; // CLpump sw state
 // byte CLPumpRunOnce = OFF; // run CLPump after Pump stops
@@ -503,10 +509,9 @@ void pressed(Button2 &btn); // when button/sw pressed
 #define EOC_PIN -1   // set to any GPIO pin to read end-of-conversion by pin
 Adafruit_MPRLS AirFlowSensor = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 struct AirSensor AirPump;
+ */
 
-; */
-int StatusAirSensor = 0;
-bool StatusCLSensor = OFF;
+
 /************************   mcp expander  ****************************/
 Adafruit_MCP23X17 IOExpander;
 
@@ -1015,8 +1020,9 @@ void setup()
   Serial.println(INA0.getManufID());
   Serial.print("getManufID1: ");
   Serial.println(INA1.getManufID());
-  delay(5000);
-  // en/dis channel as needed. effects response time   INA0.setChannelEnable(INA3221_CH1);
+  delay(2000);
+  // en/dis channel as needed. effects response time   
+  INA0.setChannelEnable(INA3221_CH1);
   INA0.setChannelEnable(INA3221_CH2);
   INA0.setChannelEnable(INA3221_CH3);
 
@@ -1405,8 +1411,8 @@ void loop()
       LEDControl(&IOExpander, LevelHi, ON);
       if (AutoPositionFlag) // run test in auto only
       {
-        TestPwrSupply();
-        TestLevelSensor();
+        //TestPwrSupply();          // *************************************** run time diag
+        //TestLevelSensor();        // *************************************** run time diag
         AlarmControl = ON;
       }
     }
@@ -1418,19 +1424,20 @@ void loop()
 
     // update AirFlow Sensor
 
-    StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan3);
+    StatusAirSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan3);
     Serial.println("AirSensorUpdate");
     // Serial.printf("Status Air Sensor: %d", StatusAirSensor);
     //  if bad reading run fault display
     if (StatusAirSensor != 0)
     {
       Serial.println("1333 &IOExpander, AirFlowFault, ON");
-      LEDControl(&IOExpander, AirFlow, ON);
+      LEDControl(&IOExpander, AirFlow, OFF);
       LEDControl(&IOExpander, AirFlowFault, ON);
       if (AutoPositionFlag) // run test in auto only
       {
-        TestPwrSupply();
-        TestAirSensor();
+        //TestPwrSupply();          // *************************************** run time diag
+        //TestAirSensor();          // *************************************** run time diag
+
       }
     }
     else
@@ -1451,8 +1458,8 @@ void loop()
       LEDControl(&IOExpander, CLLow, ON);
       if (AutoPositionFlag) // run test in auto only
       {
-        TestPwrSupply();
-        TestCLSensor();
+         //TestPwrSupply();          // *************************************** run time diag
+        //TestAirSensor();          
       }
     }
     else
@@ -1474,7 +1481,8 @@ void loop()
       {
         /************************** led=PumpRed, flashstate=flash,*/
 
-        TestWaterFlowSensor();
+        //TestWaterFlowSensor();      // *************************************** run time diag
+        
         // Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
         // delay(1000);
       }
@@ -1492,15 +1500,16 @@ void loop()
       {
         /************************** led=PumpRed, flashstate=flash,*/
 
-        TestWaterFlowSensor();
+        //TestWaterFlowSensor();      // *************************************** run time diag
+
         // Serial.println("StatusWaterPump == OFF && StatusWaterFlowSensor == ON");
         // delay(1000);
       }
     }
     else
     {
-      // ??? Serial.println("1406 &IOExpander, PumpFlowFault, ON");
-      // ??? LEDControl(&IOExpander, PumpFlowFault, ON);
+       Serial.println("1406 &IOExpander, PumpFlowFault, Off");
+     LEDControl(&IOExpander, PumpFlowFault, OFF);
     }
     SensorReadFlag = OFF;
   }
@@ -1922,7 +1931,7 @@ void LevelControl(void)
   {
 
     PumpControl = OFF;
-    LEDControl(&IOExpander, PumpFlow, ON);
+    LEDControl(&IOExpander, PumpFlow, OFF);
     // LEDControl(&IOExpander, OFF, LED_PumpFlow_RED_PIN, Flashing);
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
     //  DEBUGPRINT(" AutoAlarmStatusOFF ");

@@ -26,9 +26,10 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 	case 0: // AutoInManual
 
 		if (state == ON)
-		{
+		{ 
 			Serial.println("********   NOT IN AUTO  ON   **********");
-			Expndr->digitalWrite(LED_Auto_GRN_PIN, OFF);
+			// flash yellow
+			Expndr->digitalWrite(LED_Auto_GRN_PIN, BlinkState);
 			Expndr->digitalWrite(LED_Auto_RED_PIN, BlinkState);
 		}
 		else
@@ -123,9 +124,8 @@ void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state)
 		else
 		{
 			Serial.println("****  air flow   OFF  ****");
-			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, ON);
-			Expndr->digitalWrite(LED_AirFlow_RED_PIN, OFF);
-			// Expndr->digitalWrite(LED_Alarm_RED_PIN, OFF);
+			Expndr->digitalWrite(LED_AirFlow_GRN_PIN, OFF);
+			Expndr->digitalWrite(LED_AirFlow_RED_PIN, ON);
 		}
 
 		break;
