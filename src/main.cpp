@@ -159,13 +159,13 @@
                 SRF = 0x70 not used
 
               Define all pins
-              I2C             23 I2c_SDA
-                              22 I2c_SCL
+              I2C             V2=22  V1=23  I2c_SDA
+                              V2=20  V1=22  I2c_SCL
 
               SD_Card - SPI
                               5 SCK
-                              18 MOSI
-                              19 MISO
+                              V2=19 V1=18 MOSI
+                              V2=21 V1=19 MISO
                               33 SD_CS
               Inputs -
                               //34 SensorPin analog
@@ -173,16 +173,16 @@
                               14 encoder sw
                               15,32 enca, encb
                               36 blue tooth connect from bt board
-                              21 cl switch
-                              4 waterflow
+                              MOVED TO IF BOARD- 21 cl switch
+                              MOVED TO IF BOARD- 4 waterflow switch
 
               Outputs -
                               12 AlarmPin
                               13 PumpPin
                               //27 CL Pump    // currently being used for toggle pin during SD_Update
               Bluetooth -
-                              17 tx
-                              16 rx
+                              V2=8 V1=17 tx
+                              V2=7 V1=16 rx
                               Name: TurdFloater
                               PSWD: 1234
                               Baud:19200,8,n,1
@@ -232,8 +232,8 @@
 /********************************* changed pin definition on ver F
  * stopped using analog and allowed for better connections  ****************/
 
-// SPI
-// V1 MOSI=18; V2 MOSI=21
+// SPI          //////// changed for esp32v2**************
+// V1 MOSI=18; V2 MOSI=19
 // V1 MISO=19; V2 MISO=21
 #define SD_CS 33       // SD Card
 
