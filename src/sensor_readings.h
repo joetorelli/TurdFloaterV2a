@@ -39,8 +39,12 @@ struct SensorData
     // float power_mW = 0;
 
     // values read from INA3221 boards
+    //[board][chan]
     float BusV[2][3];
     float ShuntImA[2][3];
+
+    // status
+    int SensorFailType[2][3];
 
     // values for WaterLevel sensor
     float DepthIn = 0;
@@ -55,7 +59,7 @@ struct SensorData
     int WFStatus = 0;
 };
 
-int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);
+void ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);
 double mapf(double var, double InMin, double InMax, double OutMin, double OutMax);
 
 #endif

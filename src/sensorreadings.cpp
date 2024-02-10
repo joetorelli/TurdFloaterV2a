@@ -8,15 +8,15 @@
 
 // returns Status of sensor ans fill struc with values
 
-int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum)
+void ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum)
 {
 
-    int SensorFailType = 0;
-    // static int SensorFailCount = 0;
-    // float current_ma[2][3];
-    // float voltage[2][3];
-    // float shunt[2][3];
-    // float LoadV[2][3];
+    // int SensorFailType = 0;
+    //  static int SensorFailCount = 0;
+    //  float current_ma[2][3];
+    //  float voltage[2][3];
+    //  float shunt[2][3];
+    //  float LoadV[2][3];
 
     // change array size for what is needed**********************************
     // maybe move to eprom
@@ -27,11 +27,11 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     // B2 Chan2 = 12v
     // B2 Chan3 = WaterLevel scale vals convert 4-20ma to mm
     //                         B1             B2
-    //                     wf, cl, af  3v, 12v, wl
-    double in_min[2][3] = {{0, 0, 0}, {0, 0, 4.98}};
-    double in_max[2][3] = {{1, 1, 5}, {3.3, 12, 20.00}};
-    double out_min[2][3] = {{0, 0, 0}, {0, 0, 240.0}};
-    double out_max[2][3] = {{1, 1, 30}, {3.3, 12, 3000}};
+    //                      wf,  cl,  af     3v,  12v, wl
+    double in_min[2][3] = {{0.0, 0.0, 0.5}, {0.0, 0.0, 4.98}};
+    double in_max[2][3] = {{12.0, 12.0, 4.5}, {3.3, 12, 20.00}};
+    double out_min[2][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 240.0}};
+    double out_max[2][3] = {{1.0, 1.0, 30.0}, {3.3, 12.0, 3000}};
 
     // current_ma[BNum][CNum] = SensorIFBoard->getCurrent_mA(CNum + 1) * 1000;
     // voltage[BNum][CNum] = SensorIFBoard->getBusVoltage_V(CNum + 1);
@@ -63,29 +63,29 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             {
 
                 // SensorFailCount++;
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->BusV[BNum][CNum] > 15) // set for hi 12v over 350ma
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
 
             else if (SensorValue->ShuntImA[BNum][CNum] <= 0) // set for low 12v current
             {
 
                 // SensorFailCount++;
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->ShuntImA[BNum][CNum] > 500) // set for hi 12v over 350ma
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
             else //////////// good 12v
             {
                 // SensorFailCount = 0;
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
             }
         }
 
@@ -97,17 +97,17 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
 
                 // SensorFailCount++;
 
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->BusV[BNum][CNum] > 15) //  set for hi 12v
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
             if (SensorValue->ShuntImA[BNum][CNum] < 3.5) // test for no sensor
             {
                 // SensorFailCount++;
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
 
                 // pass bad val
                 SensorValue->DepthMM = -1;
@@ -116,7 +116,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             else if (SensorValue->ShuntImA[BNum][CNum] > 21.0) // test for bad sensor
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
 
                 // pass bad val
                 SensorValue->DepthMM = -1;
@@ -125,7 +125,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             else // good sensor
             {
                 // SensorFailCount = 0;
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
 
                 // pass val
                 SensorValue->DepthMM = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
@@ -167,18 +167,18 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             if (SensorValue->BusV[BNum][CNum] < .5) // set for no sensor
             {
 
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->BusV[BNum][CNum] > 1) // set for low press
             {
 
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
 
             else if (SensorValue->BusV[BNum][CNum] > 4) //  set for hi press
             {
 
-                SensorFailType = 3;
+                SensorValue->SensorFailType[BNum][CNum] = 3;
 
                 // pass bad val
                 // SensorValue->pressure_PSI = 0;
@@ -186,14 +186,14 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             else // good sensor
             {
                 // SensorFailCount = 0;
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
 
                 // pass val
                 SensorValue->DepthMM = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 SensorValue->DepthIn = SensorValue->DepthMM / 25.4;
             }
         }
-        return SensorFailType;
+        // return SensorFailType;
     }
 
     // test for bad reading
@@ -203,16 +203,16 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         {
             if (SensorValue->BusV[BNum][CNum] < 3.1) // set for low v
             {
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->BusV[BNum][CNum] > 3.5) //  set for hi v
             {
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
             else // good sensor
             {
 
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
             }
         }
 
@@ -224,29 +224,29 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             {
 
                 // SensorFailCount++;
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->BusV[BNum][CNum] > 15) // set for hi 12v over 350ma
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
 
             else if (SensorValue->ShuntImA[BNum][CNum] <= 0) // set for low 12v current
             {
 
                 // SensorFailCount++;
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
             }
             else if (SensorValue->ShuntImA[BNum][CNum] > 500) // set for hi 12v over 350ma
             {
                 // SensorFailCount++;
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
             }
             else //////////// good 12v
             {
                 // SensorFailCount = 0;
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
             }
         }
 
@@ -256,7 +256,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             if (SensorValue->ShuntImA[BNum][CNum] < 3.5) // test for no sensor
             {
 
-                SensorFailType = 1;
+                SensorValue->SensorFailType[BNum][CNum] = 1;
 
                 // pass bad val
                 SensorValue->DepthMM = -1;
@@ -265,7 +265,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             else if (SensorValue->ShuntImA[BNum][CNum] > 21.0) // test for bad sensor
             {
 
-                SensorFailType = 2;
+                SensorValue->SensorFailType[BNum][CNum] = 2;
 
                 // pass bad val
                 SensorValue->DepthMM = -1;
@@ -274,7 +274,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             else // good sensor
             {
 
-                SensorFailType = 0;
+                SensorValue->SensorFailType[BNum][CNum] = 0;
 
                 // pass val
                 SensorValue->DepthMM = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
@@ -282,7 +282,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
             }
         }
     }
-    return SensorFailType;
+    // return SensorFailType;
 }
 
 double mapf(double var, double InMin, double InMax, double OutMin, double OutMax)
