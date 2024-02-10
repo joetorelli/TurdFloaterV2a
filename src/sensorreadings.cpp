@@ -19,6 +19,7 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     // float LoadV[2][3];
 
     // change array size for what is needed**********************************
+    // maybe move to eprom
     // B1 Chan1 = WaterFlow
     // B1 Chan2 = CLSW
     // B1 Chan3 = AirFlow
@@ -26,11 +27,11 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     // B2 Chan2 = 12v
     // B2 Chan3 = WaterLevel scale vals convert 4-20ma to mm
     //                         B1             B2
-    //                     w, cl, af  3v,12v, wl
+    //                     wf, cl, af  3v, 12v, wl
     double in_min[2][3] = {{0, 0, 0}, {0, 0, 4.98}};
-    double in_max[2][3] = {{1, 1, 5}, {3, 12, 20.00}};
+    double in_max[2][3] = {{1, 1, 5}, {3.3, 12, 20.00}};
     double out_min[2][3] = {{0, 0, 0}, {0, 0, 240.0}};
-    double out_max[2][3] = {{1, 1, 30}, {3, 12, 3000}};
+    double out_max[2][3] = {{1, 1, 30}, {3.3, 12, 3000}};
 
     // current_ma[BNum][CNum] = SensorIFBoard->getCurrent_mA(CNum + 1) * 1000;
     // voltage[BNum][CNum] = SensorIFBoard->getBusVoltage_V(CNum + 1);
