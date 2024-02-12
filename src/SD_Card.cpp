@@ -219,9 +219,9 @@ void Refresh_SD(DateTime *RTCClk, SensorData *SensorValue, double cntr, int PmpP
 
     // TimeStr = TimeStr + ", " + SenLVal->DepthMM + ", " + SenLVal->DepthIn + ", " + SenEVal->f_temperature + ", " + SenEVal->f_humidity + "\r\n";
 
-    float TempCurrent = SensorValue->ShuntImA[2][3];
-    float TempBusV = SensorValue->BusV[2][3];
-    TimeStr = TimeStr + ",\t" + SensorValue->DepthMM + " mm,\t\t" + SensorValue->DepthIn + " in,\t" + TempCurrent + " ma,\t" + TempBusV + " mv,\t " + PmpPltVal + " pmp,\t" + AlrmPltVal + " alm,\t" + CLPmpPltVal + " clp" + "\r\n ";
+    float TempCurrent = SensorValue->ShuntImA[1][2];
+    float TempBusV = SensorValue->BusV[1][2];
+    TimeStr = TimeStr + ",\t" + SensorValue->DepthMM + " mm,\t\t" + SensorValue->DepthIn + " in,\t" + SensorValue->ShuntImA[1][2] + " ma,\t" + SensorValue->BusV[1][2] + " mv,\t " + PmpPltVal + " pmp,\t" + AlrmPltVal + " alm,\t" + CLPmpPltVal + " clp" + "\r\n ";
     DEBUGPRINT("TimeStr= ");
     DEBUGPRINTLN(TimeStr);
     appendFile(SD, "/datalog.txt", TimeStr.c_str());

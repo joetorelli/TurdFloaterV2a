@@ -62,13 +62,8 @@
                     adding 2nd INA3221
 
                   inwork -
-                      move cl sensor back to SensorIF - use 50k current limit/ do the same to water flow sw
-                       REMOVE READWATERFLOWSENSOR
-                      move to readsensorif
                       remove references of power supply from resdsensorif
-
                       menu system setup
-
                       add alarm flags and alarm timer beep
                       add air flow read/setting to pump menu
 
@@ -86,13 +81,16 @@
                  open -
                   add air pressure level adj to warning trigger
                   looking into web page
-                  done - will move to esp32v2
                   add alarm if not in auto after some time
 
                   Connect to ESPHome
                   Vol adj to PWM for alarm works on screen
 
             Need to fix
+              done - move cl sensor back to SensorIF - use 470ohm current limit/ do the same to water flow sw and Air flow sensor
+                       REMOVE READWATERFLOWSENSOR
+                       move to readsensorif
+              done - will move to esp32v2        
               done - Pump LED flashes from man to auto
               done - add moving average -
               done - Store pump settings data in eeprom
@@ -256,8 +254,9 @@
 
 #define SWEncoderPin 14 // enc push button
 
-#define CLLevelSW 21
-#define WaterFlowSW 4
+// moved to ina board
+//#define CLLevelSW 21
+//#define WaterFlowSW 4
 
 // Rotary Encoder
 #define ROTARY_ENCODER_A_PIN 32
@@ -453,8 +452,8 @@ static const uint8_t _INA2_addr = 65; //  hex 41 I2C address of 2nd sdl board
 // tweeked the resistor value while measuring the current (@11.5ma center of 4-20ma) with a meter. To make the numbers very close.
 // with sig gen
 // ina3221(address, chan1 shunt miliohm, chan2 shunt miliohm, chan3 shunt miliohm)
-SDL_Arduino_INA3221 INA0(_INA1_addr, 105, 7530, 105); // 6170, 7590, 8200);
-SDL_Arduino_INA3221 INA1(_INA2_addr, 105, 105, 105);  // 6170, 7590, 8200)
+SDL_Arduino_INA3221 INA0(_INA1_addr, 100, 100, 100);  // 6170, 7590, 8200);
+SDL_Arduino_INA3221 INA1(_INA2_addr, 100, 100, 7520); // 6170, 7590, 8200);
 // the 7.5ohm resistor works out he best. Shunt mv=~30-150, max out of register at 163.8mv.
 //  this leaves some head room for when sensor fails and goes max
 //  need to add test condition for <4ma(open) and >20ma (fault)
@@ -574,10 +573,10 @@ void setup()
   pinMode(BTStatusPin, INPUT_PULLUP);
 
   // CL Mag SW
-  pinMode(CLLevelSW, INPUT);
+  //pinMode(CLLevelSW, INPUT);
 
   // Water Flow SW
-  pinMode(WaterFlowSW, INPUT_PULLUP);
+  //pinMode(WaterFlowSW, INPUT_PULLUP);
 
   //// turn off outputs
   digitalWrite(AlarmPin, OFF);
@@ -1044,6 +1043,7 @@ void setup()
   INA1.setBusConversionTime(INA3221_REG_CONF_CT_1100US);
   //  Sets shunt-voltage conversion time.
   INA1.setShuntConversionTime(INA3221_REG_CONF_CT_1100US);
+  
   /****************************   NVM   ************************/
   // test for first run time
   Settings.begin("storage", RO_MODE); // nvm storage space, set to read
@@ -1156,7 +1156,7 @@ void setup()
   }
 
   /********************* init pressure sensor ***************/
-  // changed to ina3221 IF
+  // changed to ina3221 IF with xdcr
   /*   Serial.println("MPRLS Simple Test");
     if (!AirFlowSensor.begin())
     {
@@ -1284,7 +1284,7 @@ void loop()
   if (BTStatusFlag == ON)
   {
 
-    Serial.println("1188 &IOExpander, Bluetooth, ON");
+    Serial.println("Bluetooth, ON");
     LEDControl(&IOExpander, Bluetooth, ON);
     /////////////   Receive and Process APP Data
     while (Serial1.available() > 0)
@@ -1374,7 +1374,7 @@ void loop()
   }
   else
   {
-    // Serial.println("1278 &IOExpander, Bluetooth, OFF");
+    //Serial.println("Bluetooth, OFF");
     LEDControl(&IOExpander, Bluetooth, OFF);
   }
 
@@ -1407,7 +1407,7 @@ void loop()
     // if bad reading run fault display
     if (StatusLevelSensor != 0)
     {
-      Serial.println("1311 &IOExpander, LevelHi, ON");
+      Serial.println("LevelHi, ON");
       LEDControl(&IOExpander, LevelHi, ON);
       if (AutoPositionFlag) // run test in auto only
       {
@@ -1430,7 +1430,7 @@ void loop()
     //  if bad reading run fault display
     if (StatusAirSensor != 0)
     {
-      Serial.println("1333 &IOExpander, AirFlowFault, ON");
+      Serial.println("AirFlowFault, ON");
       LEDControl(&IOExpander, AirFlow, OFF);
       LEDControl(&IOExpander, AirFlowFault, ON);
       if (AutoPositionFlag) // run test in auto only
@@ -1442,7 +1442,7 @@ void loop()
     }
     else
     {
-      // Serial.println("1343 &IOExpander, AirFlowFault, OFF");
+      // Serial.println("AirFlowFault, OFF");
       LEDControl(&IOExpander, AirFlowFault, OFF);
       LEDControl(&IOExpander, AirFlow, ON);
     }
@@ -1454,7 +1454,7 @@ void loop()
     //  if bad reading run fault display
     if (StatusCLSensor == ON) // mag detected
     {
-      Serial.println("1354 &IOExpander, CLLow, ON");
+      Serial.println("CLLow, ON");
       LEDControl(&IOExpander, CLLow, ON);
       if (AutoPositionFlag) // run test in auto only
       {
@@ -1469,13 +1469,13 @@ void loop()
     }
     // sensor water level read
     StatusWaterFlowSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
-    Serial.println("FLOWSensorUpdate");
+    //Serial.println("FLOWSensorUpdate");
     Serial.printf("Pump: %d, Water: %d\n", StatusWaterPump, StatusWaterFlowSensor);
 
     //  if bad reading run fault display
     if (StatusWaterPump == ON && StatusWaterFlowSensor == OFF)
     {
-      Serial.println("1375 (&IOExpander, PumpFlowFault, on");
+      Serial.println("1375 (PumpFlowFault1, on");
       LEDControl(&IOExpander, PumpFlowFault, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
@@ -1483,18 +1483,18 @@ void loop()
 
         //TestWaterFlowSensor();      // *************************************** run time diag
         
-        // Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
+        //Serial.println("StatusWaterPump == ON && StatusWaterFlowSensor == OFF");
         // delay(1000);
       }
     }
     else
     {
-      // Serial.println("1387 &IOExpander, PumpFlowFault, OFF");
+      // Serial.println("PumpFlowFault, OFF");
       LEDControl(&IOExpander, PumpFlowFault, OFF);
     }
     if (StatusWaterPump == OFF && StatusWaterFlowSensor == ON)
     {
-      Serial.println("1394 &IOExpander, PumpFlowFault, ON");
+      Serial.println("PumpFlowFault2, ON");
       LEDControl(&IOExpander, PumpFlowFault, ON);
       if (AutoPositionFlag == ON) // run test in auto/pump only
       {
@@ -1508,7 +1508,7 @@ void loop()
     }
     else
     {
-       Serial.println("1406 &IOExpander, PumpFlowFault, Off");
+       Serial.println("PumpFlowFault3, Off");
      LEDControl(&IOExpander, PumpFlowFault, OFF);
     }
     SensorReadFlag = OFF;
@@ -2719,7 +2719,7 @@ void pressed(Button2 &btn)
         */
 
       AutoManControl = ON;
-      Serial.println("2794 &IOExpander, AutoInManual, OFF");
+      Serial.println("AutoInManual, OFF");
       LEDControl(&IOExpander, AutoInManual, OFF);
       if (SSWMode != 1) // comming from another switch position
       {
@@ -2751,7 +2751,7 @@ void pressed(Button2 &btn)
       AlarmManControl = OFF; // set in menu
 
       AutoManControl = OFF;
-      Serial.println("2826 &IOExpander, AutoInManual, ON");
+      Serial.println("AutoInManual, ON");
       LEDControl(&IOExpander, AutoInManual, ON);
       if (DisplayState == OFF) // turn display on but do not restart screen off timer
       {

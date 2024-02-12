@@ -22,16 +22,16 @@ void DisplayLevelSensor(Adafruit_SSD1327 *Disp, SensorData *SensorValue)
         Disp->println(SenLevVal->ShuntVmv, 2); */
     Disp->setTextSize(2);
 
-    Disp->printf("  %d mm\n", SensorValue->DepthMM);
-    // Disp->print(SenLevVal->DepthMM);
-    // Disp->print(" MM");
+    //Disp->printf("  %.2f mm\n", SensorValue->DepthMM);
+    Disp->print(SensorValue->DepthMM,2);
+    Disp->println(" MM");
     // Disp->print(" IN: ");
     // Disp->println(SenLevVal->DepthIn, 1);
     Disp->setTextSize(1);
 }
 
 // just used to show save count on display
-void OLED_Light(Adafruit_SSD1327 *Disp, double LT, SensorData *SensorValue)
+void OLED_Light(Adafruit_SSD1327 *Disp, float LT, SensorData *SensorValue)
 {
 
     Disp->print("#");

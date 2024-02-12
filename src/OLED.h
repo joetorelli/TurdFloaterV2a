@@ -38,5 +38,5 @@ void OLED_Date(Adafruit_SSD1327 *Disp, DateTime *RTCClk);
 void OLED_Day(Adafruit_SSD1327 *Disp, DateTime *RTCClk);
 void DisplayLevelSensor(Adafruit_SSD1327 *Disp, SensorData *SensorValue);
 // void DisplaySwitches(Adafruit_SSD1327 *Disp, Select_SW *SwState);
-void OLED_Light(Adafruit_SSD1327 *Disp, double LT, SensorData *SensorValue);
+void OLED_Light(Adafruit_SSD1327 *Disp, float LT, SensorData *SensorValue);
 #endif

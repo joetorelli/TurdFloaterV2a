@@ -44,7 +44,7 @@ struct SensorData
 
     // values for WaterLevel sensor
     float DepthIn = 0;
-    int DepthMM = 0;
+    float DepthMM = 0;
 
     // value for AirPressure sensor
     float pressure_PSI = 0;
@@ -56,6 +56,6 @@ struct SensorData
 };
 
 int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);
-double mapf(double var, double InMin, double InMax, double OutMin, double OutMax);
+float mapf(float var, float InMin, float InMax, float OutMin, float OutMax);
 
 #endif
