@@ -50,9 +50,9 @@ struct SensorData
     float pressure_PSI = 0;
 
     // values for chlorine sensor
-    int CLStatus = 0;
+    int CLValue = 0;
     // values for WaterFlow sensor
-    int WFStatus = 0;
+    int WFValue = 0;
 };
 
 int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, int BNum, int CNum);

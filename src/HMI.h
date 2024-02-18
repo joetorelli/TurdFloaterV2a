@@ -29,20 +29,20 @@ Pin #	Pin Name	Pin ID
 7	GPB6	14
 8	GPB7	15 */
 
-#define LED_Alarm_RED_PIN 15
-#define LED_Remote_RED_PIN 14
-#define LED_Auto_RED_PIN 13
-#define LED_Auto_GRN_PIN 12
-#define LED_WL_RED_PIN 11
-#define LED_WL_GRN_PIN 10
-#define LED_CL_RED_PIN 9
-#define LED_CL_GRN_PIN 8
+#define LED_Alarm_RED_PIN 15		// when there is a fault, otherwise GRN?
+#define LED_Remote_RED_PIN 14		// blue in BT mode green in WIFI, otherwise OFF
+#define LED_Auto_RED_PIN 13			// when in remote set to yellow, when not in auto set to red
+#define LED_Auto_GRN_PIN 12			// sw to auto or yellow for remote
+#define LED_WL_RED_PIN 11			// WL high
+#define LED_WL_GRN_PIN 10			// WL OK
+#define LED_CL_RED_PIN 9			// CL low
+#define LED_CL_GRN_PIN 8			// CL OK
 
-#define LED_PumpFlow_RED_PIN 0
-#define LED_PumpFlow_GRN_PIN 1
-#define LED_AirFlow_RED_PIN 2
-#define LED_AirFlow_GRN_PIN 3
-#define LED_BT_BLU_PIN 4
+#define LED_PumpFlow_RED_PIN 0		// pump running WF fault
+#define LED_PumpFlow_GRN_PIN 1		// pump running WF good
+#define LED_AirFlow_RED_PIN 2		// AF Fault
+#define LED_AirFlow_GRN_PIN 3		// AF OK
+#define LED_BT_BLU_PIN 4			// remove
 
 void LEDControl(Adafruit_MCP23X17 *Expndr, int type, int state);
 

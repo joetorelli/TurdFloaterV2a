@@ -13,7 +13,6 @@ extern int AlarmOffLevel;
 extern bool AlarmManControl;
 extern byte StatusAlarm;
 
-
 // Pump Control
 void Pump(bool PumpOnOff)
 {
@@ -45,6 +44,7 @@ void Pump(bool PumpOnOff)
 			//  DEBUGPRINTLN(StatusWaterPump);
 		}
 	}
+
 	else // manual control
 	{	 ///////////////////////////////////////////////////// maybe changes this to PumpToggle
 
@@ -61,6 +61,7 @@ void Pump(bool PumpOnOff)
 			//   TestWaterFlowSensor();
 			// }
 		}
+
 		else
 		{
 			digitalWrite(PumpPin, OFF);

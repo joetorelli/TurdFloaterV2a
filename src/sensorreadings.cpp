@@ -51,20 +51,20 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     // value for AirPressure sensor
     float pressure_PSI = 0;
     // values for chlorine sensor
-    int CLStatus = 0;
+    int CLValue = 0;
     // values for WaterFlow sensor
-    int WFStatus = 0;
+    int WFValue = 0;
     */
 
     SensorValue->ShuntImA[BNum][CNum] = SensorIFBoard->getCurrent_mA(CNum + 1) * 1000;
     SensorValue->BusV[BNum][CNum] = SensorIFBoard->getBusVoltage_V(CNum + 1);
     // test print
-    Serial.println();
-    Serial.printf("********************* Read Sensor Value, Board= %d  Chan= %d \n", BNum, CNum);
-    Serial.printf("Bus V= %.2f  BusI= %.2f \n", SensorValue->BusV[BNum][CNum], SensorValue->ShuntImA[BNum][CNum]);
-    Serial.printf("DepthIn= %d  DepthMM= %d  AP_PSI= %.2f  CLStatus= %d  WFStatus= %d \n", SensorValue->DepthIn, SensorValue->DepthMM, SensorValue->pressure_PSI, SensorValue->CLStatus, SensorValue->WFStatus);
+    // Serial.println();
+    // Serial.printf("********************* Read Sensor Value, Board= %d  Chan= %d \n", BNum, CNum);
+    // Serial.printf("Bus V= %.2f  BusI= %.2f \n", SensorValue->BusV[BNum][CNum], SensorValue->ShuntImA[BNum][CNum]);
+    // Serial.printf("DepthIn= %d  DepthMM= %d  AP_PSI= %.2f  CLValue= %d  WFValue= %d \n", SensorValue->DepthIn, SensorValue->DepthMM, SensorValue->pressure_PSI, SensorValue->CLValue, SensorValue->WFValue);
 
-    Serial.println();
+    // Serial.println();
 
     //////////////////////////////////////////////////// needs update
 
@@ -72,76 +72,139 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
     {
         if (CNum == 0) // water flow switch
         {
-            // read the current
-            int temp = SensorValue->ShuntImA[BNum][CNum];
 
-            switch (temp)
+            // no sensor
+            if (SensorValue->ShuntImA[BNum][CNum] < 1)
             {
-            case 0 ... 1:
-                // no sensor
-                SensorValue->WFStatus = SensorValue->ShuntImA[BNum][CNum];
+
+                SensorValue->WFValue = -1;
                 SensorStatus = 2;
+            }
 
-                break;
-            case 2 ... 29:
-                // good value
-                if (SensorValue->ShuntImA[BNum][CNum] < 15) // switch open
+            // good value
+            else if (SensorValue->ShuntImA[BNum][CNum] >= 1 and SensorValue->ShuntImA[BNum][CNum] <= 29)
+            {
+                // switch open
+                if (SensorValue->ShuntImA[BNum][CNum] < 15.0)
                 {
-                    SensorValue->WFStatus = 0;
+                    SensorValue->WFValue = 0;
                     SensorStatus = 0;
                 }
-                else // closed
+                else // switch closed
                 {
-                    SensorValue->WFStatus = 1;
+                    SensorValue->WFValue = 1;
                     SensorStatus = 0;
                 }
+            }
 
-                break;
-            default:
-                // bad sensor
-                SensorValue->WFStatus = SensorValue->ShuntImA[BNum][CNum];
+            // bad sensor
+            else
+            {
+
+                SensorValue->WFValue = 255;
                 SensorStatus = 1;
             }
 
-            Serial.printf("TestWFSwitchCurrent= %.2f    TestWFSwitchV= .2%f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
-            Serial.printf("WFStatus= %.2f    SensorStatus %d  \n", SensorValue->WFStatus, SensorStatus);
+            /*             // read the current
+                        int temp = SensorValue->ShuntImA[BNum][CNum];
+
+                        switch (temp)
+                        {
+                        case 0 ... 1:
+                            // no sensor
+                            SensorValue->WFValue = SensorValue->ShuntImA[BNum][CNum];
+                            SensorStatus = 2;
+
+                            break;
+                        case 2 ... 29:
+                            // good value
+                            if (SensorValue->ShuntImA[BNum][CNum] < 15) // switch open
+                            {
+                                SensorValue->WFValue = 0;
+                                SensorStatus = 0;
+                            }
+                            else // closed
+                            {
+                                SensorValue->WFValue = 1;
+                                SensorStatus = 0;
+                            }
+
+                            break;
+                        default:
+                            // bad sensor
+                            SensorValue->WFValue = SensorValue->ShuntImA[BNum][CNum];
+                            SensorStatus = 1;
+                        } */
+
+            // Serial.printf("TestWFSwitchCurrent= %.2f    TestWFSwitchV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
+            // Serial.printf("WFValue= %d   SensorStatus= %d \n", SensorValue->WFValue, SensorStatus);
         }
 
         if (CNum == 1) // CL Switch
         {
-
-            // read the current
-            int temp = SensorValue->ShuntImA[BNum][CNum];
-
-            switch (temp)
+            // no sensor
+            if (SensorValue->ShuntImA[BNum][CNum] <= 1.4)
             {
-            case 0 ... 1:
-                // no sensor
-                SensorValue->CLStatus = SensorValue->ShuntImA[BNum][CNum];
+                SensorValue->CLValue = SensorValue->ShuntImA[BNum][CNum];
                 SensorStatus = 2;
-
-                break;
-            case 2 ... 29:
-                // good value
-                if (SensorValue->ShuntImA[BNum][CNum] < 15) // switch open
+            }
+            
+            // good value
+            else if (SensorValue->ShuntImA[BNum][CNum] >= 1.5 and SensorValue->ShuntImA[BNum][CNum] <= 29)
+            {
+                // switch open
+                if (SensorValue->ShuntImA[BNum][CNum] < 15.0) 
                 {
-                    SensorValue->CLStatus = 0;
+                    SensorValue->CLValue = 0;
                     SensorStatus = 0;
                 }
-                else // closed
+                // closed
+                else 
                 {
-                    SensorValue->CLStatus = 1;
+                    SensorValue->CLValue = 1;
                     SensorStatus = 0;
                 }
-
-                break;
-            default:
-                // bad sensor
-                SensorValue->CLStatus = SensorValue->ShuntImA[BNum][CNum];
+            }
+            
+            // bad sensor
+            else
+            {
+                SensorValue->CLValue = SensorValue->ShuntImA[BNum][CNum];
                 SensorStatus = 1;
             }
-            Serial.printf("TestCLSwitchCurrent= %.2f    TestCLSwitchV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
-            Serial.printf("CLStatus= %.2f    SensorStatus %d  \n", SensorValue->CLStatus, SensorStatus);
+
+            // read the current
+            // int temp = SensorValue->ShuntImA[BNum][CNum];
+            /*
+                        switch (temp)
+                        {
+                        case 0 ... 1:
+                            // no sensor
+                            SensorValue->CLValue = SensorValue->ShuntImA[BNum][CNum];
+                            SensorStatus = 2;
+
+                            break;
+                        case 2 ... 29:
+                            // good value
+                            if (SensorValue->ShuntImA[BNum][CNum] < 15) // switch open
+                            {
+                                SensorValue->CLValue = 0;
+                                SensorStatus = 0;
+                            }
+                            else // closed
+                            {
+                                SensorValue->CLValue = 1;
+                                SensorStatus = 0;
+                            }
+
+                            break;
+                        default:
+                            // bad sensor
+                            SensorValue->CLValue = SensorValue->ShuntImA[BNum][CNum];
+                            SensorStatus = 1;
+                        } */
+            // Serial.printf("TestCLSwitchCurrent= %.2f    TestCLSwitchV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
+            // Serial.printf("CLValue= %d    SensorStatus %d  \n", SensorValue->CLValue, SensorStatus);
 
             /*         //  SensorFailCount = 0; ////////////////////////////////////
                     if (SensorFailCount > 5)
@@ -174,45 +237,55 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         // test for bad reading
         if (CNum == 2) // Air flow sensor
         {
-            if (SensorValue->BusV[BNum][CNum] < 1) //   no sensor
+            //   no sensor
+            if (SensorValue->BusV[BNum][CNum] < 1) 
             {
                 SensorValue->pressure_PSI = 0;
                 SensorStatus = 2;
             }
-            else if (SensorValue->BusV[BNum][CNum] > 4.5) //  set for hi press voltage
+            
+            //  bad sensor  set for hi press voltage
+            else if (SensorValue->BusV[BNum][CNum] > 4.5) 
             {
                 SensorValue->pressure_PSI = mapf(SensorValue->BusV[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 SensorStatus = 1;
             }
-            else  // good range voltage
+            
+            // good range voltage
+            else 
             {
-
                 SensorValue->pressure_PSI = mapf(SensorValue->BusV[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 SensorStatus = 0;
             }
 
-            Serial.printf("TestAirFlowCurrent= %.2f    TestAirFlowV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
-            Serial.printf("pressure_PSI= %.2f    SensorStatus %d  \n", SensorValue->pressure_PSI, SensorStatus);
+            // Serial.printf("TestAirFlowCurrent= %.2f    TestAirFlowV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
+            // Serial.printf("pressure_PSI= %.2f    SensorStatus %d  \n", SensorValue->pressure_PSI, SensorStatus);
         }
-        // return SensorStatus;
+
+        //return SensorStatus;
     }
 
     // test for bad reading
     if (BNum == 1) // I/F Board 2
     {
-        if (CNum == 0) // 3.3v
+        // 3.3v
+        if (CNum == 0) 
         {
-            if (SensorValue->BusV[BNum][CNum] < 3.1) // set for low v
+            // no sensor  set for low v
+            if (SensorValue->BusV[BNum][CNum] < 3.1) 
             {
                 SensorStatus = 1;
             }
-            else if (SensorValue->BusV[BNum][CNum] > 3.5) //  set for hi v
+            
+            //  bad sensor   set for hi v
+            else if (SensorValue->BusV[BNum][CNum] > 3.5) 
             {
                 SensorStatus = 2;
             }
-            else // good sensor
+            
+            // good sensor
+            else 
             {
-
                 SensorStatus = 0;
             }
 
@@ -223,29 +296,37 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         ////// test for 12v
         if (CNum == 1)
         {
-
-            if (SensorValue->BusV[BNum][CNum] < 9) // set for low 12v
+            // set for low 12v
+            if (SensorValue->BusV[BNum][CNum] < 9) 
             {
                 // SensorFailCount++;
                 SensorStatus = 1;
             }
-            else if (SensorValue->BusV[BNum][CNum] > 15) // set for hi 12v over 350ma
+            
+            // set for hi 12v
+            else if (SensorValue->BusV[BNum][CNum] > 15) 
             {
                 // SensorFailCount++;
                 SensorStatus = 2;
             }
-            else if (SensorValue->ShuntImA[BNum][CNum] <= 0) // set for low 12v current
+            
+            // set for low 12v current
+            else if (SensorValue->ShuntImA[BNum][CNum] <= 0) 
             {
 
                 // SensorFailCount++;
                 SensorStatus = 1;
             }
-            else if (SensorValue->ShuntImA[BNum][CNum] > 500) // set for hi 12v over 350ma
+            
+            // set for hi 12v over 350ma
+            else if (SensorValue->ShuntImA[BNum][CNum] > 500) 
             {
                 // SensorFailCount++;
                 SensorStatus = 2;
             }
-            else //////////// good 12v
+            
+            //////////// good 12v
+            else 
             {
                 // SensorFailCount = 0;
                 SensorStatus = 0;
@@ -257,43 +338,41 @@ int ReadSensorIF(SDL_Arduino_INA3221 *SensorIFBoard, SensorData *SensorValue, in
         // test water level
         if (CNum == 2)
         {
-
-            if (SensorValue->ShuntImA[BNum][CNum] < 3.5) // test for no sensor
+            // test for no sensor
+            if (SensorValue->ShuntImA[BNum][CNum] < 3.5) 
             {
-
                 SensorStatus = 2;
-
                 // pass bad val
-                SensorValue->DepthMM = -1;
-                SensorValue->DepthIn = -1;
+                SensorValue->DepthMM = 255;
+                SensorValue->DepthIn = 255;
             }
-            else if (SensorValue->ShuntImA[BNum][CNum] > 21.0) // test for bad sensor
-            {
 
+            // test for bad sensor
+            else if (SensorValue->ShuntImA[BNum][CNum] > 21.0) 
+            {
                 SensorStatus = 1;
-
                 // pass bad val
                 SensorValue->DepthMM = -1;
                 SensorValue->DepthIn = -1;
             }
-            else // good sensor
+
+            // good sensor
+            else 
             {
-
                 SensorStatus = 0;
-
                 // pass val
-
                 SensorValue->DepthMM = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 // temp = mapf(SensorValue->ShuntImA[BNum][CNum], in_min[BNum][CNum], in_max[BNum][CNum], out_min[BNum][CNum], out_max[BNum][CNum]);
                 SensorValue->DepthIn = SensorValue->DepthMM / 25.4;
             }
 
-               Serial.printf("TestwaterLevelCurrent= %.2f    TestwaterLevelV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
-            Serial.printf("DepthMM= %.2f  DepthIN= %.2f    SensorStatus %d  \n", SensorValue->DepthMM, SensorValue->DepthIn,SensorStatus);         
-       
-            Serial.println();
+            // Serial.printf("TestwaterLevelCurrent= %.2f    TestwaterLevelV= %.2f \n", SensorValue->ShuntImA[BNum][CNum], SensorValue->BusV[BNum][CNum]);
+            // Serial.printf("DepthMM= %.2f  DepthIN= %.2f    SensorStatus %d  \n", SensorValue->DepthMM, SensorValue->DepthIn, SensorStatus);
+
+            // Serial.println();
         }
     }
+    
     return SensorStatus;
 }
 
