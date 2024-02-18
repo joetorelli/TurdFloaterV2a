@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "OutPutControl.h"
 #include "sensor_readings.h"
+#include "HMI.h"
 
 extern struct SensorData Sensor_Level_Values;
 extern bool AutoManControl;
@@ -19,10 +20,11 @@ void Pump(bool PumpOnOff)
 
 	if (AutoManControl == ON) // auto
 	{
-		if (Sensor_Level_Values.DepthMM >= PumpOnLevel)
+		if (PumpOnOff == ON)
 		{
 			digitalWrite(PumpPin, ON);
 			StatusWaterPump = ON;
+			//LEDControl(&IOExpander, PumpFlow, ON);
 			// Serial.println(" AutoPumpStatusON ");
 			//  DEBUGPRINTLN(StatusWaterPump);
 			// CLPumpRunOnce = ON;
@@ -34,10 +36,11 @@ void Pump(bool PumpOnOff)
 			// }
 		}
 
-		if (Sensor_Level_Values.DepthMM <= PumpOffLevel)
+		if (PumpOnOff == OFF)
 		{
 			digitalWrite(PumpPin, OFF);
 			StatusWaterPump = OFF;
+			//LEDControl(&IOExpander, PumpFlow, OFF);
 			// //      delay(500);
 			// StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
 			// DEBUGPRINT(" AutoPumpStatusOFF ");
@@ -128,12 +131,23 @@ void Alarm(bool AlarmOnOff)
 	}
 }
 
-// toggle pump on/off
+// toggle pump on/off manual control
 void PumpToggle()
 {
 
 	PumpManControl = !PumpManControl;
 	digitalWrite(PumpPin, PumpManControl);
+
+	if (PumpManControl == 1)
+	{
+		StatusWaterPump = ON;
+	}
+	else
+	{
+		StatusWaterPump = OFF;
+	}
+	
+	
 }
 
 // toggle clpump on/off
@@ -144,7 +158,7 @@ void PumpToggle()
   digitalWrite(CLPumpPin, CLPumpManFlag);
 } */
 
-// toggle alram on/off
+// toggle alram on/off manual control
 void AlarmToggle()
 {
 
