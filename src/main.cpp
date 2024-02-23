@@ -316,6 +316,7 @@ unsigned int APP_interval = 500;    // ms for updating BT panel
 unsigned int Sensor_interval = 500; // ms for sensor reading
 unsigned int DISP_interval = 250;   // ms for oled disp data update
 float DISP_TimeOut = 150000;        // sec how long before blank screen
+float WFSwitch_TimeOut = 500;
 // float CLPump_RunTime = 5;           // sec for CL Pump to run
 
 /*************************** BT APP Vars ********************/
@@ -403,6 +404,9 @@ void SD_Update();           // write to sd file
 void SD_UpdateSetFlag();    // set flag to run SD update
 boolean SDUpdateFlag = OFF; // update flag
 
+void WFSwitchUpdate();
+boolean WFUpdateFlag = OFF;
+
 void Blink_Update();
 void BlinkSetFlag();
 boolean BlinkUpdateFlag = OFF;
@@ -422,7 +426,7 @@ Ticker APPTimer(SendAppData, APP_interval, 0, MILLIS);               // how ofte
 Ticker SensorTimer(SensorReadSetFlag, Sensor_interval, 0, MILLIS);   // how often to Read Sensor
 Ticker DisPlayTimer(DisplayUpdateSetFlag, DISP_interval, 0, MILLIS); // how often to update OLED
 Ticker DisplayOffTimer(DisplayOffSetFlag, DISP_TimeOut);             // when to blank display
-// Ticker ReadWaterSWTimer;
+Ticker ReadWaterSWTimer(WFSwitchUpdate, WFSwitch_TimeOut);
 Ticker BlinkerTimer(BlinkSetFlag, Blink_interval, 0, MILLIS);
 // Ticker CLPumpTimer;     // how long to run CLPump
 /*************************************************************************
@@ -1175,8 +1179,9 @@ void setup()
   SensorTimer.start();  // set flag to read sensor
   DisPlayTimer.start(); // set flag to update oled data
   BlinkerTimer.start();
+
   // DisplayOffTimer.attach(DISP_TimeOut, DisplayOff);
-  //     changer.once(30, change);
+  //      changer.once(30, change);
 
   // every 25 ms, call setPin(0)
   //   tickerSetLow.attach_ms(2000, setPin, 0);
@@ -1259,12 +1264,13 @@ void setup()
 void loop()
 {
   /*************************  timers ****************/
-  SDTimer.update();      // set flag to write to sd
-  APPTimer.update();     // update app data
-  SensorTimer.update();  // set flag to read sensor
-  DisPlayTimer.update(); // set flag to update oled data
-  DisplayOffTimer.update();
-  BlinkerTimer.update();
+  SDTimer.update();          // set flag to write to sd
+  APPTimer.update();         // update app data
+  SensorTimer.update();      // set flag to read sensor
+  DisPlayTimer.update();     // set flag to update oled data
+  DisplayOffTimer.update();  // Blank Display
+  ReadWaterSWTimer.update(); // WF Switch timer
+  BlinkerTimer.update();     // LED Blink flag
 
   /******************  encoder & PB ********************/
   rotary_loop();
@@ -1396,7 +1402,7 @@ void loop()
     // update AirFlow Sensor
     StatusAirSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan3);
     // Serial.println("AirSensorUpdate");
-    //Serial.printf("Status Air Sensor: %d  Value: %.2f", StatusAirSensor, Sensor_Level_Values.pressure_PSI);
+    // Serial.printf("Status Air Sensor: %d  Value: %.2f", StatusAirSensor, Sensor_Level_Values.pressure_PSI);
     //  if bad reading run fault display
     if (StatusAirSensor != 0)
     {
@@ -1419,9 +1425,9 @@ void loop()
 
     // sensor cl level read  - INA Board 1 Chan 2
     StatusCLSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan2);
-    //Serial.println("CLSensorUpdate");
-    //Serial.printf("Status CL Sensor: %d  Value: %.2f", StatusCLSensor, Sensor_Level_Values.ShuntImA[0][1]);
-    //  if bad reading run fault display
+    // Serial.println("CLSensorUpdate");
+    // Serial.printf("Status CL Sensor: %d  Value: %.2f", StatusCLSensor, Sensor_Level_Values.ShuntImA[0][1]);
+    //   if bad reading run fault display
     if (StatusCLSensor != 0) // mag detected
     {
       Serial.println("CLLow, ON");
@@ -1469,6 +1475,7 @@ void loop()
   {
     Serial.println("LevelHi, ON");
     LEDControl(&IOExpander, LevelHi, ON);
+
     if (AutoPositionFlag) // run test in auto only
     {
       // TestPwrSupply();          // *************************************** run time diag
@@ -1482,61 +1489,36 @@ void loop()
     LEDControl(&IOExpander, LevelHi, OFF);
   }
 
+  // pump operation
   Pump(PumpControl);
-  // CLPump();
-  Alarm(AlarmControl);
 
   // sensor water flow read
-  // if (StatusWaterPump == ON)
-  //{
-  StatusWFSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
-  // Serial.println("FLOWSensorUpdate");  Serial.printf("Status CL Sensor: %d  Value: %.2f", StatusCLSensor, Sensor_Level_Values.ShuntImA[0][1]);
-  Serial.printf("Pump: %d, WFStat: %d  WFValue: %d\n", StatusWaterPump, StatusWFSensor,Sensor_Level_Values.WFValue);
-  delay(1000);
-  //}
-
-  //  if bad reading run fault display
-/*   if (StatusWaterPump == ON && StatusWFSensor == 0)    //good
+  if (StatusWaterPump == ON)
   {
-    Serial.println("1375 (PumpFlowFault1, on");
-    LEDControl(&IOExpander, PumpFlowFault, ON);
-    if (AutoPositionFlag == ON) // run test in auto/pump only
+
+    if (ReadWaterSWTimer.state() == STOPPED) // first time start timer then look at WF SW
     {
-      //  ************************** led=PumpRed, flashstate=flash,
+      ReadWaterSWTimer.start();
+    }
 
-      // TestWaterFlowSensor();      // *************************************** run time diag
-
-      // Serial.println("StatusWaterPump == ON && StatusWFSensor == OFF");
-      //  delay(1000);
+    if (WFUpdateFlag == ON) // timer sets flag to start reading WF SW
+    {
+      StatusWFSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
+      Serial.printf("Pump: %d, WFStat: %d  WFValue: %d\n", StatusWaterPump, StatusWFSensor, Sensor_Level_Values.WFValue);
+      // WFUpdateFlag == OFF;    //reads WF every .5 sec
     }
   }
   else
   {
-    // Serial.println("PumpFlowFault, OFF");
-    LEDControl(&IOExpander, PumpFlowFault, OFF);
-  }
 
-  if (StatusWaterPump == OFF && StatusWFSensor == 1)   //bad sensor
-  {
-    Serial.println("PumpFlowFault2, ON");
-    LEDControl(&IOExpander, PumpFlowFault, ON);
-    if (AutoPositionFlag == ON) // run test in auto/pump only
+    if (ReadWaterSWTimer.state() == RUNNING)
     {
-      //  led=PumpRed, flashstate=flash,
-
-      // TestWaterFlowSensor();      // *************************************** run time diag
-
-      // Serial.println("StatusWaterPump == OFF && StatusWFSensor == ON");
-      // delay(1000);
+      ReadWaterSWTimer.stop();
+      WFUpdateFlag == OFF;
     }
   }
-  else
-  {
-    // Serial.println("PumpFlowFault2, Off");
-    LEDControl(&IOExpander, PumpFlowFault, OFF);
-  } */
 
-
+  // flow led
   if (StatusWaterPump == ON && Sensor_Level_Values.WFValue == 1)
   {
     Serial.println("PumpFlowOn, ON");
@@ -1545,8 +1527,51 @@ void loop()
   }
   else
   {
-
     LEDControl(&IOExpander, PumpFlow, OFF);
+  }
+
+  //  if bad reading run fault display
+  if (StatusWaterPump == ON && StatusWFSensor == 0) // good reading
+  {
+    // Serial.println("PumpFlowFault, OFF");
+    LEDControl(&IOExpander, PumpFlowFault, OFF);
+  }
+
+  if (StatusWaterPump == OFF)
+  {
+    // ******* change to greater thann one after debug
+    if (StatusWFSensor == 1) // bad sensor
+    {
+      Serial.println("1375 (PumpFlowFault1, on");
+      LEDControl(&IOExpander, PumpFlowFault, ON);
+
+      if (AutoPositionFlag == ON) // run test in auto/pump only
+      {
+        //  ************************** led=PumpRed, flashstate=flash,
+
+        // TestWaterFlowSensor();      // *************************************** run time diag
+
+        // Serial.println("StatusWaterPump == ON && StatusWFSensor == OFF");
+        //  delay(1000);
+      }
+    }
+
+    if (StatusWFSensor == 2) // no sensor
+    {
+      Serial.println("PumpFlowFault2, ON");
+      LEDControl(&IOExpander, PumpFlowFault, ON);
+
+      if (AutoPositionFlag == ON) // run test in auto/pump only
+      {
+
+        //  led=PumpRed, flashstate=flash,
+
+        // TestWaterFlowSensor();      // *************************************** run time diag
+
+        // Serial.println("StatusWaterPump == OFF && StatusWFSensor == ON");
+        // delay(1000);
+      }
+    }
   }
 }
 
@@ -1926,7 +1951,8 @@ void LevelControl(void)
   {
 
     PumpControl = ON;
-    LEDControl(&IOExpander, PumpFlow, ON);
+    // LEDControl(&IOExpander, PumpFlow, ON);
+
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
     //    DEBUGPRINT(" AutoAlarmStatusOFF ");
     //    DEBUGPRINTLN(StatusAlarm);
@@ -1946,11 +1972,12 @@ void LevelControl(void)
   {
 
     PumpControl = OFF;
-    LEDControl(&IOExpander, PumpFlow, OFF);
-    // LEDControl(&IOExpander, OFF, LED_PumpFlow_RED_PIN, Flashing);
+
+    // LEDControl(&IOExpander, PumpFlow, OFF);
+    //  LEDControl(&IOExpander, OFF, LED_PumpFlow_RED_PIN, Flashing);
     //************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
-    //  DEBUGPRINT(" AutoAlarmStatusOFF ");
-    //  DEBUGPRINTLN(StatusAlarm);
+    //   DEBUGPRINT(" AutoAlarmStatusOFF ");
+    //   DEBUGPRINTLN(StatusAlarm);
 
     // //      delay(500);
     // StatusWFSensor = ReadWaterFlowSensor(WaterFlowSW);
@@ -2345,7 +2372,7 @@ void TestWaterFlowSensor()
   for (int i = 0; i <= 6; i++)
   {
     // sensor cl read
-    StatusWFSensor = ReadSensorIF(&INA1, &Sensor_Level_Values, Board1, Chan1);
+    StatusWFSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
     delay(100);
   }
 
@@ -2500,14 +2527,6 @@ void DisplayOn(void)
     DisplayOffTimer.stop();
   }
 }
-
-// stop CLPump
-/* void CLPumpOFF(void)
-{
-
-  digitalWrite(CLPumpPin, OFF);
-  CLPumpStatus = OFF;
-} */
 
 // set flag to send data to app
 void DisplayUpdateSetFlag(void)
@@ -3387,6 +3406,11 @@ void SensorReadSetFlag()
 {
 
   SensorReadFlag = ON;
+}
+
+void WFSwitchUpdate()
+{
+  WFUpdateFlag = ON;
 }
 
 void SD_UpdateSetFlag()

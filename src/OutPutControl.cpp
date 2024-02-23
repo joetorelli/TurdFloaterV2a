@@ -12,6 +12,7 @@ extern bool PumpManControl;
 extern int AlarmOnLevel;
 extern int AlarmOffLevel;
 extern bool AlarmManControl;
+extern bool WFUpdateFlag;
 extern byte StatusAlarm;
 
 // Pump Control
@@ -24,27 +25,12 @@ void Pump(bool PumpOnOff)
 		{
 			digitalWrite(PumpPin, ON);
 			StatusWaterPump = ON;
-			//LEDControl(&IOExpander, PumpFlow, ON);
-			// Serial.println(" AutoPumpStatusON ");
-			//  DEBUGPRINTLN(StatusWaterPump);
-			// CLPumpRunOnce = ON;
-			// delay(500);
-			// StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-			// if (StatusWaterFlowSensor == OFF)
-			// {
-			//   TestWaterFlowSensor();
-			// }
 		}
 
 		if (PumpOnOff == OFF)
 		{
 			digitalWrite(PumpPin, OFF);
 			StatusWaterPump = OFF;
-			//LEDControl(&IOExpander, PumpFlow, OFF);
-			// //      delay(500);
-			// StatusWaterFlowSensor = ReadWaterFlowSensor(WaterFlowSW);
-			// DEBUGPRINT(" AutoPumpStatusOFF ");
-			//  DEBUGPRINTLN(StatusWaterPump);
 		}
 	}
 
@@ -146,17 +132,7 @@ void PumpToggle()
 	{
 		StatusWaterPump = OFF;
 	}
-	
-	
 }
-
-// toggle clpump on/off
-/* void CLPumpToggle()
-{
-
-  CLPumpManFlag = !CLPumpManFlag;
-  digitalWrite(CLPumpPin, CLPumpManFlag);
-} */
 
 // toggle alram on/off manual control
 void AlarmToggle()
