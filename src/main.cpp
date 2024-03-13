@@ -281,6 +281,7 @@ const byte CLLow = 6;
 const byte Bluetooth = 7;
 const byte Wireless = 8;
 bool BlinkState;
+bool AlarmState;
 /********************/
 
 /****** SYSTEM  ******/
@@ -305,19 +306,17 @@ byte AlarmType = OFF;
 int StatusWFSensor = OFF;
 int StatusAirSensor = 0;
 int StatusCLSensor = OFF;
-// byte CLPumpStatus = OFF;  // CLPump On/Off
-// byte CLPumpManFlag = OFF; // CLpump sw state
-// byte CLPumpRunOnce = OFF; // run CLPump after Pump stops
 
 /********** timer intervals ***************/
-float Blink_interval = 500;         // alarm,leds on/off
-float SD_interval = 30000;          // ms for updating file on sd card
+float Blink_interval = 500; // alarm,leds on/off
+float AlarmOnTime = 1000;
+float AlarmOffTime = 15000;
+float SD_interval = 60000;          // ms for updating file on sd card
 unsigned int APP_interval = 500;    // ms for updating BT panel
 unsigned int Sensor_interval = 500; // ms for sensor reading
 unsigned int DISP_interval = 250;   // ms for oled disp data update
 float DISP_TimeOut = 150000;        // sec how long before blank screen
-float WFSwitch_TimeOut = 500;
-// float CLPump_RunTime = 5;           // sec for CL Pump to run
+float WFSwitch_TimeOut = 500;       // delay WF SW reading one time after pump run
 
 /*************************** BT APP Vars ********************/
 int BTStatusFlag = OFF;
@@ -369,27 +368,22 @@ struct Select_SW Switch_State; // switch position
 byte SWEncoderFlag = OFF;      // encoder push button
 byte SSWMode = 1;              // position of select switch and encoder
 
-// int ChanNum = 0;
-
 /******************* eeprom ******************/
 Preferences Settings; // NVM
 
 /**********************************************************************
-*******************  Sub/Function Declarations
+*******************  Sub/Function Declarations  **********************
 **********************************************************************/
 
 void WriteData(void);    // save to eprom
 void LevelControl(void); // test water level
-
-// void CLPump(void);    // CLpump control on sets timer for off
-// void CLPumpOFF(void); // CLPump off
 
 void BuildPanel(void);  // builds app panels on phone
 void DisplayData(void); // send serial data debug
 // DateTime OLEDClock = rtc.now();
 void SystemSetUp(void); /////////////////// oled menu
 
-/********  ticker timers callback functions  *********/
+/********  ticker timers callback functions and flags  *********/
 void DisplayUpdate(void);        // update oled data
 void DisplayUpdateSetFlag(void); // set flag to run display update
 boolean DisplayUpdateFlag = ON;  // update flag
@@ -400,11 +394,15 @@ boolean DisplayOffFlag = OFF; // update flag
 
 void DisplayOn(void); // update disp on start blank timer
 
+void AlarmOnSetFlag();
+void AlarmOffSetFlag();
+boolean AlarmFlag = OFF;
+
 void SD_Update();           // write to sd file
 void SD_UpdateSetFlag();    // set flag to run SD update
 boolean SDUpdateFlag = OFF; // update flag
 
-void WFSwitchUpdate();
+void WFSwitchSetFlag();
 boolean WFUpdateFlag = OFF;
 
 void Blink_Update();
@@ -426,11 +424,13 @@ Ticker APPTimer(SendAppData, APP_interval, 0, MILLIS);               // how ofte
 Ticker SensorTimer(SensorReadSetFlag, Sensor_interval, 0, MILLIS);   // how often to Read Sensor
 Ticker DisPlayTimer(DisplayUpdateSetFlag, DISP_interval, 0, MILLIS); // how often to update OLED
 Ticker DisplayOffTimer(DisplayOffSetFlag, DISP_TimeOut);             // when to blank display
-Ticker ReadWaterSWTimer(WFSwitchUpdate, WFSwitch_TimeOut);
+Ticker ReadWaterSWTimer(WFSwitchSetFlag, WFSwitch_TimeOut);
 Ticker BlinkerTimer(BlinkSetFlag, Blink_interval, 0, MILLIS);
-// Ticker CLPumpTimer;     // how long to run CLPump
+Ticker AlarmOnTimer(AlarmOnSetFlag, AlarmOnTime);
+Ticker AlarmOffTimer(AlarmOffSetFlag, AlarmOffTime);
+
 /*************************************************************************
- ********************** Init Hardware
+ ********************** Init Hardware **********************************
  ************************************************************************/
 
 /*******************   oled display   **************/
@@ -441,7 +441,6 @@ Adafruit_SSD1327 OLED_Display(128, 128, &Wire, OLED_RESET, 1000000);
 
 /*******************  rtc  *************************/
 RTC_PCF8523 rtc; // on feather logger board
-
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = -6 * 60 * 60;
@@ -449,7 +448,6 @@ const int daylightOffset_sec = 0;
 struct tm timeinfo;
 
 /**********************  ina3221  ********************/
-// #include "SDL_Arduino_INA3221.h"
 static const uint8_t _INA1_addr = 64; //  hex 40 I2C address of 1st sdl board
 static const uint8_t _INA2_addr = 65; //  hex 41 I2C address of 2nd sdl board
 
@@ -505,15 +503,6 @@ void pressed(Button2 &btn); // when button/sw pressed
 // byte myButtonStateHandler();
 // void myTapHandler(Button2 &btn);
 
-/***********************  air (pressure) sensor  *****************/
-// You dont *need* a reset and EOC pin for most uses, so we set to -1 and don't connect
-// i2c adr 0x18
-/* #define RESET_PIN -1 // set to any GPIO pin # to hard-reset on begin()
-#define EOC_PIN -1   // set to any GPIO pin to read end-of-conversion by pin
-Adafruit_MPRLS AirFlowSensor = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
-struct AirSensor AirPump;
- */
-
 /************************   mcp expander  ****************************/
 Adafruit_MCP23X17 IOExpander;
 
@@ -523,7 +512,6 @@ menuFrame PumpMenu;  // runs when SSW in Pump Position
 menuFrame TestMenu;  // runs when Program Starts
 
 // menu call functions
-
 void testFunct();
 void TestLevelSensor();
 void TestAirSensor();
@@ -540,7 +528,6 @@ void PumpToggle();
 
 /****************   replace this with alarmflag - get rid of delays   ************************/
 void AlarmToggle();
-// void CLPumpToggle();
 void MenuChoose(int Mode);
 
 /********  physical poistion of SSW ***********/
@@ -1175,17 +1162,12 @@ void setup()
   /*************************  Start the timers ****************/
 
   SDTimer.start();      // set flag to write to sd
-  APPTimer.start();     // update app data
+  APPTimer.start();     // update app data  // maybe start after BTEnable
   SensorTimer.start();  // set flag to read sensor
   DisPlayTimer.start(); // set flag to update oled data
   BlinkerTimer.start();
 
   // DisplayOffTimer.attach(DISP_TimeOut, DisplayOff);
-  //      changer.once(30, change);
-
-  // every 25 ms, call setPin(0)
-  //   tickerSetLow.attach_ms(2000, setPin, 0);
-  // blinker.once(10, setPin, 3);
 
   /********************  menu ********************/
   // Pump Menu
@@ -1271,6 +1253,8 @@ void loop()
   DisplayOffTimer.update();  // Blank Display
   ReadWaterSWTimer.update(); // WF Switch timer
   BlinkerTimer.update();     // LED Blink flag
+  AlarmOnTimer.update();
+  AlarmOffTimer.update();
 
   /******************  encoder & PB ********************/
   rotary_loop();
@@ -1475,18 +1459,19 @@ void loop()
   {
     Serial.println("LevelHi, ON");
     LEDControl(&IOExpander, LevelHi, ON);
+    AlarmControl = ON;
 
     if (AutoPositionFlag) // run test in auto only
     {
       // TestPwrSupply();          // *************************************** run time diag
       // TestLevelSensor();        // *************************************** run time diag
-      AlarmControl = ON;
     }
   }
   else
   {
     // Serial.println("1322 &IOExpander, LevelHi, OFF");
     LEDControl(&IOExpander, LevelHi, OFF);
+    AlarmControl = OFF;
   }
 
   // pump operation
@@ -1495,7 +1480,7 @@ void loop()
   // sensor water flow read
   if (StatusWaterPump == ON)
   {
-
+    // delay reading WF Switch
     if (ReadWaterSWTimer.state() == STOPPED) // first time start timer then look at WF SW
     {
       ReadWaterSWTimer.start();
@@ -1530,16 +1515,17 @@ void loop()
     LEDControl(&IOExpander, PumpFlow, OFF);
   }
 
-  //  if bad reading run fault display
+  //  if good reading clear fault display
   if (StatusWaterPump == ON && StatusWFSensor == 0) // good reading
   {
     // Serial.println("PumpFlowFault, OFF");
     LEDControl(&IOExpander, PumpFlowFault, OFF);
   }
 
+  // test for bad flow switch
   if (StatusWaterPump == OFF)
   {
-    // ******* change to greater thann one after debug
+    // ******* change to >1 after debug
     if (StatusWFSensor == 1) // bad sensor
     {
       Serial.println("1375 (PumpFlowFault1, on");
@@ -1573,6 +1559,8 @@ void loop()
       }
     }
   }
+
+  Alarm(AlarmControl);
 }
 
 /**************************************************************************************************
@@ -2058,7 +2046,8 @@ void TestPwrSupply()
     OLED_Display.print("Current: ");
     OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan2], 1);
     OLED_Display.display();
-    delay(1000);
+    AlarmControl = OFF;
+    // delay(1000);
     break;
 
   case 1: // low
@@ -2077,10 +2066,10 @@ void TestPwrSupply()
     OLED_Display.println("");
     OLED_Display.printf("Replace %s \n", Type.c_str());
     OLED_Display.display();
-    AlarmToggle();
-    delay(5000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // delay(5000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   case 2: // high
@@ -2097,10 +2086,11 @@ void TestPwrSupply()
     OLED_Display.println("");
     OLED_Display.printf("Replace %s \n", Type.c_str());
     OLED_Display.display();
-    AlarmToggle();
-    delay(5000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(5000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   default:
@@ -2112,7 +2102,8 @@ void TestPwrSupply()
     OLED_Display.println("");
     OLED_Display.println("Check PS");
     OLED_Display.display();
-    delay(5000);
+    AlarmControl = ON;
+    // delay(5000);
     break;
   }
   OLED_Display.clearDisplay();
@@ -2172,7 +2163,8 @@ void TestLevelSensor()
     OLED_Display.print("Current: ");
     OLED_Display.println(Sensor_Level_Values.ShuntImA[Board2][Chan3], 1);
     OLED_Display.display();
-    delay(1000);
+    AlarmControl = OFF;
+    // delay(1000);
     break;
 
   case 1:
@@ -2188,10 +2180,11 @@ void TestLevelSensor()
     OLED_Display.println("Replace Sensor");
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(5000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(5000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   case 2:
@@ -2210,10 +2203,11 @@ void TestLevelSensor()
 
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(5000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(5000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   default:
@@ -2225,7 +2219,7 @@ void TestLevelSensor()
     OLED_Display.println("");
     OLED_Display.println("Check PS");
     OLED_Display.display();
-    delay(10000);
+    // delay(10000);
     break;
   }
 
@@ -2280,7 +2274,8 @@ void TestAirSensor()
     OLED_Display.print("PSI: ");
     OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
-    delay(1000);
+    AlarmControl = OFF;
+    // delay(1000);
     break;
 
   case 1: // sensor not found
@@ -2297,10 +2292,11 @@ void TestAirSensor()
     OLED_Display.println("Replace Sensor");
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(1000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(1000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   case 2: // sensor low press
@@ -2317,10 +2313,11 @@ void TestAirSensor()
     OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(1000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(1000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   case 3: // sensor hi press
@@ -2337,10 +2334,11 @@ void TestAirSensor()
     OLED_Display.println(Sensor_Level_Values.pressure_PSI, 1);
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(1000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(1000);
+    // AlarmToggle();
+    // delay(1000);
     break;
 
   default:
@@ -2352,7 +2350,7 @@ void TestAirSensor()
     OLED_Display.println("");
     OLED_Display.println("Check PS");
     OLED_Display.display();
-    delay(10000);
+    // delay(10000);
     break;
   }
 
@@ -2373,7 +2371,7 @@ void TestWaterFlowSensor()
   {
     // sensor cl read
     StatusWFSensor = ReadSensorIF(&INA0, &Sensor_Level_Values, Board1, Chan1);
-    delay(100);
+    // delay(100);
   }
 
   if (StatusWFSensor == ON) // flow detected
@@ -2393,10 +2391,11 @@ void TestWaterFlowSensor()
     OLED_Display.display();
 
     /****************   replace this with alarmflag - get rid of delays   ************************/
+    AlarmControl = OFF;
     // AlarmToggle();
     // delay(5000);
     // AlarmToggle();
-    delay(1000);
+    // delay(1000);
   }
 
   else
@@ -2413,8 +2412,8 @@ void TestWaterFlowSensor()
     OLED_Display.print("NO Flow");
 
     OLED_Display.display();
-
-    delay(1000);
+    AlarmControl = ON;
+    // delay(1000);
   }
 }
 
@@ -2451,10 +2450,11 @@ void TestCLSensor()
     OLED_Display.print("Add Tablet");
     OLED_Display.display();
     /****************   replace this with alarmflag - get rid of delays   ************************/
-    AlarmToggle();
-    delay(5000);
-    AlarmToggle();
-    delay(1000);
+    AlarmControl = ON;
+    // AlarmToggle();
+    // delay(5000);
+    // AlarmToggle();
+    // delay(1000);
   }
 
   else
@@ -2470,8 +2470,8 @@ void TestCLSensor()
     OLED_Display.print("NO Magnet");
 
     OLED_Display.display();
-
-    delay(1000);
+    AlarmControl = OFF;
+    // delay(1000);
   }
 }
 
@@ -3397,25 +3397,24 @@ void BuildPanel(void)
   Serial1.println("run()");
   Serial1.println("*");
 }
+
 void BlinkSetFlag()
 {
-
   BlinkState = !BlinkState;
 }
+
 void SensorReadSetFlag()
 {
-
   SensorReadFlag = ON;
 }
 
-void WFSwitchUpdate()
+void WFSwitchSetFlag()
 {
   WFUpdateFlag = ON;
 }
 
 void SD_UpdateSetFlag()
 {
-
   SDUpdateFlag = ON;
 }
 

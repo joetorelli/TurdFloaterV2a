@@ -71,50 +71,51 @@ void Pump(bool PumpOnOff)
 // Alaram Control
 void Alarm(bool AlarmOnOff)
 {
+	if (AlarmOnOff == ON)
 
-	if (AutoManControl == ON)
-	{
-		if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
+		if (AutoManControl == ON)
 		{
-			digitalWrite(AlarmPin, ON);
-			StatusAlarm = ON;
-			//************************** led=LED_PumpFlow_RED_PIN, flashstate=flash,*
+			if (Sensor_Level_Values.DepthMM >= AlarmOnLevel)
+			{
+				digitalWrite(AlarmPin, ON);
+				StatusAlarm = ON;
+				//************************** led=LED_PumpFlow_RED_PIN, flashstate=flash,*
 
-			// DEBUGPRINT(" AutoAlarmStatusON ");
-			// DEBUGPRINTLN(StatusAlarm);
+				// DEBUGPRINT(" AutoAlarmStatusON ");
+				// DEBUGPRINTLN(StatusAlarm);
+			}
+
+			if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
+			{
+				digitalWrite(AlarmPin, OFF); // to relay board
+				StatusAlarm = OFF;
+				//************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
+				// DEBUGPRINT(" AutoAlarmStatusOFF ");
+				// DEBUGPRINTLN(StatusAlarm);
+			}
 		}
 
-		if (Sensor_Level_Values.DepthMM <= AlarmOffLevel)
+		else // manual control
 		{
-			digitalWrite(AlarmPin, OFF); // to relay board
-			StatusAlarm = OFF;
-			//************************** led=LED_PumpFlow_GRN_PIN, flashstate=on,*
-			// DEBUGPRINT(" AutoAlarmStatusOFF ");
-			// DEBUGPRINTLN(StatusAlarm);
-		}
-	}
+			/*run timer for 1 hr the set alarm to remind to go to back to auto*/
+			/************************** led=autogrn, flashstate=on,*/
+			/************************** clearedled=autogrn, flashstate=on,*/
 
-	else // manual control
-	{
-		/*run timer for 1 hr the set alarm to remind to go to back to auto*/
-		/************************** led=autogrn, flashstate=on,*/
-		/************************** clearedled=autogrn, flashstate=on,*/
-
-		if (AlarmManControl == ON)
-		{
-			digitalWrite(AlarmPin, ON);
-			StatusAlarm = ON;
-			// DEBUGPRINT(" ManAlarmStatusON ");
-			//   DEBUGPRINTLN(StatusAlarm);
+			if (AlarmManControl == ON)
+			{
+				digitalWrite(AlarmPin, ON);
+				StatusAlarm = ON;
+				// DEBUGPRINT(" ManAlarmStatusON ");
+				//   DEBUGPRINTLN(StatusAlarm);
+			}
+			else
+			{
+				digitalWrite(AlarmPin, OFF);
+				StatusAlarm = OFF;
+				// DEBUGPRINT(" ManAlarmStatusOFF ");
+				//   DEBUGPRINTLN(StatusAlarm);
+			}
 		}
-		else
-		{
-			digitalWrite(AlarmPin, OFF);
-			StatusAlarm = OFF;
-			// DEBUGPRINT(" ManAlarmStatusOFF ");
-			//   DEBUGPRINTLN(StatusAlarm);
-		}
-	}
 }
 
 // toggle pump on/off manual control
@@ -137,7 +138,15 @@ void PumpToggle()
 // toggle alram on/off manual control
 void AlarmToggle()
 {
-
 	AlarmManControl = !AlarmManControl;
 	digitalWrite(AlarmPin, AlarmManControl);
+
+	if (AlarmManControl == 1)
+	{
+	StatusAlarm = ON;
+	}
+	else
+	{
+	StatusAlarm = OFF;
+	}
 }
